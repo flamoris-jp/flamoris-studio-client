@@ -1,0 +1,33 @@
+# .NET
+**/bin/
+**/obj/
+.vs/
+TestResults/
+artifacts/
+*.user
+*.suo
+
+# Node (if tooling is introduced later)
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Local configuration and machine state
+.env
+.env.*
+!.env.example
+*.local.json
+.local/
+state/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs / temporary output
+*.log
+tmp/
+temp/
