@@ -6,7 +6,7 @@ This repository sits close to local files and desktop tools. Security, privacy, 
 
 ## Before contributing
 
-For small documentation or isolated fixes, feel free to open a pull request directly.
+Issues are welcome from everyone. Pull requests are accepted only from repository collaborators. Please open an Issue to propose documentation fixes, isolated fixes, or implementation changes.
 
 For filesystem access, asset-reference design, upload/download behavior, session/authentication, local tool launch, discovery, or production-app integration, open an Issue first.
 
@@ -39,6 +39,8 @@ FLAMORIS does not provide guaranteed individual support. Repository documentatio
 ---
 
 # FLAMORIS Studio Client へのコントリビューション
+
+Issueはどなたでも歓迎します。Pull Requestはリポジトリのcollaboratorのみ受け付けています。修正、機能、ドキュメント変更などの提案はIssueからお願いします。
 
 このRepositoryはローカルファイルやdesktop toolsの近くで動く予定なので、filesystem accessやtool launchは通常の機能追加より慎重に扱ってください。
 
