@@ -2,6 +2,8 @@
 
 Local bridge for FLAMORIS Studio, connecting desktop files, media, and production tools to the Studio.
 
+**Status: planning/foundation only. No runtime, transport, authentication, discovery protocol, or tool surface is implemented yet.**
+
 FLAMORIS Studio Client is the planned machine-local bridge between FLAMORIS Studio and large projects, media files, and production tools that should remain on a user's workstation.
 
 ## Why this exists
