@@ -4,7 +4,7 @@
 
 These instructions apply to the entire repository.
 
-This repository contains FLAMORIS Studio Client, the machine-local bridge between FLAMORIS Studio and workstation-local projects, media, files, and production tools.
+This repository contains FLAMORIS Studio Client. The owner-selected 2026-10-24 direction expands the original machine-local bridge plan with native Windows PONPON lyric-timing and independent AudioAnalyzer modules. Read `docs/desktop-lyrics-and-audio.md` before implementation. KineticTypo belongs to Kachinco as a separate C# UI / C++ GPU executable.
 
 **Current status:** repository foundation only. Do not describe a runtime, protocol, authentication model, filesystem API, tool launcher, or discovery mechanism as implemented until code and tests exist.
 
@@ -26,7 +26,7 @@ Studio Client must not become a competing authority for:
 - generation workflows/jobs/assets owned by `flamoris-generation-mcp`;
 - GPU runtime state owned by `flamoris-lime-manager`.
 
-It is a bridge, not a hidden project database.
+The bridge remains a bridge, not a hidden project database. PONPON owns its local lyric document/history; AudioAnalyzer owns derived results bound to source identity. These modules do not compete with another product's document/session. Local tools work offline; analysis has no mandatory PONPON, lyrics or semantic phase. This is planned scope, not implemented runtime.
 
 ## Architecture principles
 

@@ -1,10 +1,20 @@
 # FLAMORIS Studio Client
 
-Local bridge for FLAMORIS Studio, connecting desktop files, media, and production tools to the Studio.
+Planned Windows lyric/audio workspaces and a local bridge for FLAMORIS Studio, keeping large media close to the workstation.
 
 **Status: planning/foundation only. No runtime, transport, authentication, discovery protocol, or tool surface is implemented yet.**
 
-FLAMORIS Studio Client is the planned machine-local bridge between FLAMORIS Studio and large projects, media files, and production tools that should remain on a user's workstation.
+FLAMORIS Studio Client is planned to host native Windows PONPON lyric-timing and independent AudioAnalyzer workspaces, alongside the machine-local bridge between Studio and local production tools. This expands the original bridge-only plan; no runtime is implemented yet.
+
+## Desktop direction — 2026-10-24
+
+- **PONPON**: open audio, paste lyrics and record immediately; native Windows ぐにぐに timing edits, selected-line playback, Undo/Redo, save/reopen and SRT export. Analysis is optional.
+- **AudioAnalyzer**: analyze a selected music file without PONPON or lyric data; waveform, dynamics, BPM/beats and estimated key/chords. Semantic analysis is not required. Large files stay local by default.
+- **KineticTypo / キネタイ**: a separate C# UI / C++ GPU text executable in the [Kachinco repository](https://github.com/flamoris-jp/flamoris-kachinco), launched from Kachinco.
+
+Initial defaults are Windows x64, C# / WPF and .NET 10 for the local shell; existing Python audio algorithms may run in a bounded worker. Local workspaces work without a Studio connection. Their documents/results have explicit module ownership; the bridge does not duplicate other products' state.
+
+[Implementation plan, boundaries and acceptance](docs/desktop-lyrics-and-audio.md). **All items in this section are planned, not implemented.**
 
 ## Why this exists
 
@@ -37,7 +47,7 @@ The client may eventually provide:
 - Studio session association
 - connection to machine-local production tools
 
-The exact protocol and implementation are not defined yet.
+The bridge protocol and implementation are not defined yet. Desktop module defaults and the migration direction are described in the linked plan.
 
 ## Authority boundary
 
@@ -79,7 +89,7 @@ Repository foundation only.
 
 Runtime, transport, authentication, discovery protocol, and tool surface are intentionally not claimed as implemented yet.
 
-The first implementation phase is planned after the new `flamoris-studio` AI Prompt Console is established.
+The next planned local slice is PONPON, followed by the independent audio-only Analyzer. Studio connection/authorization and remote capabilities remain a separate implementation slice.
 
 ## Related repositories
 
@@ -111,7 +121,7 @@ Third-party software, AI models, media, project files, and other non-code assets
 
 ## 日本語
 
-FLAMORIS Studio Clientは、FLAMORIS StudioとローカルPC上のproject / media / production toolsをつなぐためのローカルブリッジです。
+FLAMORIS Studio Clientは、Windows版PONPON・ぐにぐに・AudioAnalyzerと、FLAMORIS Studioへのローカルブリッジを実装する予定のリポジトリです。2026-10-24に当初のブリッジ専用計画を拡張しました。キネタイはカチンコのリポジトリに別EXEとして置きます。
 
 大容量ファイルをStudioサーバーへ恒久保存せず、必要なものだけを明示的な契約で扱うことを目的にします。
 
