@@ -40,7 +40,7 @@ public sealed class TimingSurface : FrameworkElement
         double left = Fit ? 0 : offset, right = Fit ? ActualWidth : Math.Min(ActualWidth, left + viewport);
         dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(20, 35, 46)), null, new Rect(left, 0, Math.Max(0, right - left), ActualHeight));
         if (right <= left) return;
-        var step = Scale >= 100 ? 1 : Scale >= 30 ? 5 : 10;
+        var step = new[] { 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1800, 3600 }.FirstOrDefault(s => s * Scale >= 85, 3600);
         for (var seconds = Math.Floor(left / Scale / step) * step; seconds * Scale < right; seconds += step)
         {
             var x = seconds * Scale;

@@ -97,6 +97,9 @@ public sealed class AudioWorker(string? python = null, string? workerPath = null
                     if (root.TryGetProperty("error", out var error)) status = error.GetString() ?? status;
                 }
                 await process.WaitForExitAsync(limit.Token); await errors;
+                // A killed Windows process can close its pipes before an async
+                // read observes cancellation. Cancellation still owns the result.
+                limit.Token.ThrowIfCancellationRequested();
                 if (process.ExitCode != 0) throw new InvalidDataException(status);
                 var bytes = (await LocalFiles.ReadAsync(Path.Combine(directory, "audio.json"), limit.Token)).Bytes;
                 var features = JsonSerializer.Deserialize<AudioFeatures>(bytes, new JsonSerializerOptions

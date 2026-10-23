@@ -43,7 +43,12 @@ public static class LyricTime
     public const int Timebase = 10_000_000;
     public static long FromSeconds(decimal seconds) => checked((long)decimal.Round(seconds * Timebase, 0, MidpointRounding.AwayFromZero));
     public static decimal Seconds(long ticks) => (decimal)ticks / Timebase;
-    public static string Display(long? ticks) => ticks.HasValue ? TimeSpan.FromTicks(ticks.Value).ToString(@"mm\:ss\.fff") : "--";
+    public static string Display(long? ticks)
+    {
+        if (!ticks.HasValue) return "--";
+        var time = TimeSpan.FromTicks(ticks.Value);
+        return time.TotalHours >= 1 ? $"{(int)time.TotalHours:00}:{time.Minutes:00}:{time.Seconds:00}.{time.Milliseconds:000}" : time.ToString(@"mm\:ss\.fff");
+    }
 }
 
 // The only persistent editing path used by keyboard, pointer and inspector.
@@ -78,6 +83,7 @@ public sealed class TimingSession
     {
         var i = p.Lines.FindIndex(l => l.Id == id);
         if (i < 0) throw new InvalidOperationException("歌詞が見つかりません。");
+        if (p.Lines[i].StartTicks == start && p.Lines[i].EndTicks == end) return p;
         return p with { Lines = p.Lines.SetItem(i, p.Lines[i] with { StartTicks = start, EndTicks = end }) };
     }, expectedRevision);
     public void Undo()

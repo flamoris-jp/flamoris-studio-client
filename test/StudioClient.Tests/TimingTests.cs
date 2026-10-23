@@ -15,6 +15,8 @@ public class TimingTests
         var original = session.Project; var id = original.Lines[0].Id;
         session.SetRange(id, 10, 20);
         var recorded = session.Project;
+        var revision = session.Revision; session.SetRange(id, 10, 20);
+        Assert.AreEqual(revision, session.Revision, "Selecting without moving must not add history.");
         session.SetRange(id, 15, 25);
         session.Undo(); Assert.AreEqual(recorded, session.Project);
         session.Redo(); Assert.AreEqual(15L, session.Project.Lines[0].StartTicks);
