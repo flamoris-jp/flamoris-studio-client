@@ -29,6 +29,14 @@ public class FileAndWorkerTests
         Assert.AreEqual("original", await File.ReadAllTextAsync(path));
     }
     [TestMethod]
+    public async Task SaveDoesNotDeleteOrFollowAnExistingLockObject()
+    {
+        var path = Path.Combine(root, "document"); var gate = path + ".flamoris.lock";
+        await File.WriteAllTextAsync(gate, "pre-existing object");
+        await Assert.ThrowsExactlyAsync<IOException>(() => LocalFiles.PublishAsync(path, "new"u8.ToArray(), null));
+        Assert.AreEqual("pre-existing object", await File.ReadAllTextAsync(gate)); Assert.IsFalse(File.Exists(path));
+    }
+    [TestMethod]
     public async Task SuccessfulReplaceUsesHashAndNoTemporaryFileRemains()
     {
         var path = Path.Combine(root, "document"); var hash = await LocalFiles.PublishAsync(path, "one"u8.ToArray(), null);

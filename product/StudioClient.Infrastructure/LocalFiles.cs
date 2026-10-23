@@ -25,7 +25,8 @@ public static class LocalFiles
         Directory.CreateDirectory(directory);
         // Serializes cooperating clients; external non-cooperating writers are detected
         // optimistically before publication, not claimed as a filesystem-wide CAS.
-        await using var gate = new FileStream(path + ".flamoris.lock", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.DeleteOnClose);
+        // CreateNew never follows or deletes a pre-existing lock/symlink object.
+        await using var gate = new FileStream(path + ".flamoris.lock", FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.DeleteOnClose);
         var temporary = Path.Combine(directory, $".{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
         try
         {

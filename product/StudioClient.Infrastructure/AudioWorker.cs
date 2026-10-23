@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Flamoris.StudioClient.Core;
@@ -75,8 +76,11 @@ public sealed class AudioWorker(string? python = null, string? workerPath = null
             directory = Path.Combine(CacheRoot, Guid.NewGuid().ToString("N")); Directory.CreateDirectory(directory);
             using var limit = CancellationTokenSource.CreateLinkedTokenSource(token); limit.CancelAfter(TimeSpan.FromMinutes(30));
             using var process = new Process { StartInfo = new ProcessStartInfo(interpreter)
-            { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true } };
-            foreach (var arg in new[] { "-I", "-u", worker, analyze ? "analyze" : "prepare", "--input", input, "--output", directory }) process.StartInfo.ArgumentList.Add(arg);
+            { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true,
+                StandardOutputEncoding = Encoding.UTF8, StandardErrorEncoding = Encoding.UTF8 } };
+            // -I ignores PYTHONUTF8/PYTHONIOENCODING: redirected Windows pipes
+            // otherwise inherit the code page and Japanese progress can fail.
+            foreach (var arg in new[] { "-I", "-X", "utf8", "-u", worker, analyze ? "analyze" : "prepare", "--input", input, "--output", directory }) process.StartInfo.ArgumentList.Add(arg);
             process.Start();
             using var cancel = limit.Token.Register(() => Kill(process));
             var errors = DrainAsync(process.StandardError, limit.Token);

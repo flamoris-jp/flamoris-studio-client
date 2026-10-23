@@ -19,7 +19,7 @@ Implemented local scope for Issue #4:
 
 Local evidence:
 
-- 18 managed tests passed, including actual C# → Python/FFmpeg → validated JSON,
+- 19 managed tests passed, including actual C# → Python/FFmpeg → validated JSON,
   no-lyrics analysis, preview PCM, concurrent-job rejection and cancellation cleanup.
 - 7 Python synthetic-audio tests passed: C/Am harmony, regular beat detection,
   silence, source fingerprint, PCM preparation and invalid-media non-publication.
