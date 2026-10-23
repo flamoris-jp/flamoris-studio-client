@@ -386,7 +386,10 @@ public partial class MainWindow : Window
             if (!await CanDiscard()) return;
             jobCancellation?.Cancel();
             if (activeJob is { } running) try { await running; } catch (Exception) { }
-            timer.Stop(); ClearPlayback(); worker.Dispose(); closingAllowed = true; Close();
+            timer.Stop(); ClearPlayback(); worker.Dispose(); closingAllowed = true;
+            // Closing may complete synchronously (no dirty document/job). Queue
+            // the second Close after the current cancellable Closing event returns.
+            _ = Dispatcher.BeginInvoke(new Action(Close));
         });
     }
 }

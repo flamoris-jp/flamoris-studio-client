@@ -24,6 +24,9 @@ cd ./artifacts/windows/FLAMORIS-StudioClient-win-x64
 step needs package download access; ordinary use does not. An existing Python
 environment with NumPy can be selected through `FLAMORIS_STUDIO_CLIENT_PYTHON`.
 That setting is local OS configuration, never loaded from a PONPON document.
+Close the running application before publishing an update into the same folder.
+The ZIP contains only the fresh build, not documents or an audio environment
+stored beside a previous executable.
 
 ## Record and adjust lyrics
 
