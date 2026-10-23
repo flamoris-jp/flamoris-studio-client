@@ -53,12 +53,12 @@ public sealed class TimingSurface : FrameworkElement
         for (var i = start; i < stop; i++)
         {
             var p = waveform[i]; var x = p.Time * Scale;
-            dc.DrawLine(pen, new Point(x, 77 - p.Max * 42), new Point(x, 77 - p.Min * 42));
-            dc.DrawLine(new Pen(Brushes.Goldenrod, 1), new Point(x, 124), new Point(x, 124 - p.Rms * 35));
+            dc.DrawLine(pen, new Point(x, 58 - p.Max * 25), new Point(x, 58 - p.Min * 25));
+            dc.DrawLine(new Pen(Brushes.Goldenrod, 1), new Point(x, 92), new Point(x, 92 - p.Rms * 25));
         }
         foreach (var beat in beats)
             if (beat * Scale >= left && beat * Scale <= right)
-                dc.DrawLine(new Pen(Brushes.DarkSlateGray, .5), new Point(beat * Scale, 25), new Point(beat * Scale, 125));
+                dc.DrawLine(new Pen(Brushes.DarkSlateGray, .5), new Point(beat * Scale, 25), new Point(beat * Scale, 95));
         for (var i = 0; i < lines.Length; i++)
         {
             var l = lines[i]; if (!l.IsTimed) continue;
@@ -66,9 +66,9 @@ public sealed class TimingSurface : FrameworkElement
             var x = (double)LyricTime.Seconds(range.Item1) * Scale;
             var width = Math.Max(2, (double)LyricTime.Seconds(range.Item2 - range.Item1) * Scale);
             if (x + width < left || x > right) continue;
-            var rect = new Rect(x, 135 + i % 3 * 24, width, 21);
+            var rect = new Rect(x, 102 + i % 3 * 18, width, 16);
             dc.DrawRoundedRectangle(l.Id == Selected ? Brushes.Teal : Brushes.DarkSlateBlue, new Pen(Brushes.LightSlateGray, .7), rect, 3, 3);
-            dc.PushClip(new RectangleGeometry(rect)); Label(dc, l.Text, Math.Max(x + 5, left + 2), rect.Y + 3, 11, Brushes.White); dc.Pop();
+            dc.PushClip(new RectangleGeometry(rect)); Label(dc, l.Text, Math.Max(x + 5, left + 2), rect.Y + 2, 10, Brushes.White); dc.Pop();
         }
         var cursor = (double)LyricTime.Seconds(Playhead) * Scale;
         if (cursor >= left && cursor <= right) dc.DrawLine(new Pen(Brushes.Coral, 1.5), new Point(cursor, 0), new Point(cursor, ActualHeight));
@@ -80,7 +80,7 @@ public sealed class TimingSurface : FrameworkElement
         var p = e.GetPosition(this);
         for (var i = lines.Length - 1; i >= 0; i--)
         {
-            var l = lines[i]; if (!l.IsTimed || p.Y < 135 + i % 3 * 24 || p.Y > 156 + i % 3 * 24) continue;
+            var l = lines[i]; if (!l.IsTimed || p.Y < 102 + i % 3 * 18 || p.Y > 118 + i % 3 * 18) continue;
             var left = (double)LyricTime.Seconds(l.StartTicks!.Value) * Scale; var right = (double)LyricTime.Seconds(l.EndTicks!.Value) * Scale;
             if (p.X < left - 3 || p.X > right + 3) continue;
             Selected = l.Id; SelectLine?.Invoke(l.Id);
