@@ -28,6 +28,11 @@ jobs:
         timeout-minutes: 4
         run: |
           if ! command -v ffmpeg >/dev/null; then
+            # The hosted Azure mirror stalled during CI; retain signed Ubuntu
+            # packages while using the official archive for this ephemeral runner.
+            if [ -f /etc/apt/apt-mirrors.txt ]; then
+              printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+            fi
             sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update
             sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y --no-install-recommends ffmpeg
           fi
