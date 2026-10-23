@@ -2,7 +2,11 @@
 
 Date: 2026-10-24 (JST)
 
-Status: Proposed implementation plan. This repository currently has no runtime.
+Status: Local PONPON/AudioAnalyzer implementation candidate. See
+[implemented local contracts](local-runtime-contract.md), [user guide](windows-user-guide.md)
+and [physical acceptance](../staging/windows-ponpon-audio.md). The later Studio/MCP
+bridge is not implemented. The sections below retain the product direction;
+algorithm, packaging and limitations are authoritative in the local contract.
 The owner selected this repository for the following local production modules;
 the scope expands the original bridge-only plan without transferring ownership
 of Kachinco, 2D or Studio documents to the bridge.

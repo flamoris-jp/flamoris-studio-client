@@ -6,7 +6,7 @@ These instructions apply to the entire repository.
 
 This repository contains FLAMORIS Studio Client. The owner-selected 2026-10-24 direction expands the original machine-local bridge plan with native Windows PONPON lyric-timing and independent AudioAnalyzer modules. Read `docs/desktop-lyrics-and-audio.md` before implementation. KineticTypo belongs to Kachinco as a separate C# UI / C++ GPU executable.
 
-**Current status:** repository foundation only. Do not describe a runtime, protocol, authentication model, filesystem API, tool launcher, or discovery mechanism as implemented until code and tests exist.
+**Current status:** local PONPON / ぐにぐに and audio-only Analyzer implementation candidate. `docs/local-runtime-contract.md` defines the local document/worker boundary; `docs/windows-user-guide.md` explains operation. No Studio transport, authentication, filesystem endpoint, MCP tool surface, discovery or remote launcher is implemented. Build/synthetic checks and physical Windows audio/UI acceptance remain distinct.
 
 ## Core authority
 
@@ -26,7 +26,7 @@ Studio Client must not become a competing authority for:
 - generation workflows/jobs/assets owned by `flamoris-generation-mcp`;
 - GPU runtime state owned by `flamoris-lime-manager`.
 
-The bridge remains a bridge, not a hidden project database. PONPON owns its local lyric document/history; AudioAnalyzer owns derived results bound to source identity. These modules do not compete with another product's document/session. Local tools work offline; analysis has no mandatory PONPON, lyrics or semantic phase. This is planned scope, not implemented runtime.
+The bridge remains a bridge, not a hidden project database. PONPON owns its local lyric document/history; AudioAnalyzer owns derived results bound to source identity. These modules do not compete with another product's document/session. Local tools work offline; analysis has no mandatory PONPON, lyrics or semantic phase. The local slice is implemented as a candidate; remote bridging remains planned.
 
 ## Architecture principles
 

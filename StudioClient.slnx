@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="product/StudioClient.Core/StudioClient.Core.csproj" />
+  <Project Path="product/StudioClient.Infrastructure/StudioClient.Infrastructure.csproj" />
+  <Project Path="product/StudioClient.App/StudioClient.App.csproj" />
+  <Project Path="test/StudioClient.Tests/StudioClient.Tests.csproj" />
+</Solution>

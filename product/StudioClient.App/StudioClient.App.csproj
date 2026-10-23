@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework><UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting><OutputType>WinExe</OutputType>
+    <AssemblyName>StudioClient</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../StudioClient.Infrastructure/StudioClient.Infrastructure.csproj" /></ItemGroup>
+  <ItemGroup><None Include="../audio-worker/*" Link="audio-worker/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+</Project>

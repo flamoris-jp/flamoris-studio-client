@@ -1,0 +1,87 @@
+<Window x:Class="Flamoris.StudioClient.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:Flamoris.StudioClient.App"
+ Title="FLAMORIS StudioClient — PONPON / AudioAnalyzer" Width="1320" Height="900" MinWidth="1000" MinHeight="720" Background="#F3F5F7" FontFamily="Yu Gothic UI" FontSize="13">
+  <DockPanel>
+    <Menu DockPanel.Dock="Top" Background="White">
+      <MenuItem Header="ファイル">
+        <MenuItem Header="新規" Click="New_Click" InputGestureText="Ctrl+N"/>
+        <MenuItem Header="プロジェクトを開く…" Click="Open_Click" InputGestureText="Ctrl+O"/>
+        <MenuItem Header="保存" Click="Save_Click" InputGestureText="Ctrl+S"/>
+        <MenuItem Header="名前を付けて保存…" Click="SaveAs_Click"/>
+        <Separator/>
+        <MenuItem Header="歌詞JSON / SRTを読み込む…" Click="Import_Click"/>
+        <MenuItem Header="SRTを書き出す…" Click="ExportSrt_Click"/>
+        <MenuItem Header="歌詞タイミングJSONを書き出す…" Click="ExportTiming_Click"/>
+        <MenuItem Header="PONPON JSONを書き出す…" Click="ExportPonpon_Click"/>
+        <MenuItem Header="解析結果JSONを書き出す…" Click="ExportAnalysis_Click"/>
+      </MenuItem>
+      <MenuItem Header="編集">
+        <MenuItem Header="元に戻す" Click="Undo_Click" InputGestureText="Ctrl+Z"/>
+        <MenuItem Header="やり直す" Click="Redo_Click" InputGestureText="Ctrl+Y"/>
+        <MenuItem Header="選択行の録り直し" Click="ClearLine_Click"/>
+        <MenuItem Header="読み込み時の歌詞に戻す" Click="Restore_Click"/>
+      </MenuItem>
+    </Menu>
+    <Border DockPanel.Dock="Bottom" Padding="12,8" Background="#E4EBF0">
+      <DockPanel><Button x:Name="CancelButton" DockPanel.Dock="Right" Content="処理をキャンセル" IsEnabled="False" Click="Cancel_Click"/>
+        <StackPanel><TextBlock x:Name="StatusText" Text="音源を開いて歌詞を貼ると、すぐに始められます。" TextWrapping="Wrap"/>
+        <ProgressBar x:Name="Progress" Height="4" Margin="0,5,0,0" Minimum="0" Maximum="100"/></StackPanel>
+      </DockPanel>
+    </Border>
+    <TabControl Margin="10" x:Name="WorkspaceTabs">
+      <TabItem Header="  PONPON / ぐにぐに  ">
+        <Grid Margin="12">
+          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="185"/><RowDefinition Height="Auto"/><RowDefinition Height="235"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+          <DockPanel><StackPanel Orientation="Horizontal"><Button Content="音源を開く…" Click="Music_Click"/><Button Content="Vocal Stemを選ぶ…" Click="Vocal_Click"/>
+            <ComboBox x:Name="PlaybackSource" Width="130" Margin="8,3" SelectionChanged="Source_Changed"><ComboBoxItem Content="Music" IsSelected="True"/><ComboBoxItem Content="Vocal Stem"/></ComboBox></StackPanel>
+            <TextBlock x:Name="MusicLabel" Text="音源未選択" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="12,0"/>
+          </DockPanel>
+          <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,6">
+            <Button Content="▶ / Ⅱ 再生・停止" Click="Play_Click"/><Button Content="選択行から再生" Click="PlaySelected_Click"/><Button Content="先頭へ" Click="Start_Click"/>
+            <TextBlock x:Name="ClockText" Text="00:00.000" FontSize="20" FontFamily="Consolas" VerticalAlignment="Center" Margin="15,0"/>
+            <TextBlock Text="Space：再生 / Enter長押し：PON" Foreground="#52616F" VerticalAlignment="Center"/>
+            <CheckBox x:Name="PreviewLyrics" Content="みるみる" Margin="14,0" VerticalAlignment="Center" Unchecked="Preview_Unchecked" ToolTip="再生位置の歌詞をプレビューします。"/>
+          </StackPanel>
+          <Grid Grid.Row="2"><Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/></Grid.ColumnDefinitions>
+            <DockPanel Margin="0,0,14,0"><Button DockPanel.Dock="Bottom" Content="この歌詞で始める（1行ずつ）" Click="PasteLyrics_Click"/>
+              <TextBox x:Name="LyricsInput" MaxLength="4000000" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" ToolTip="歌詞を貼り付けてください。"/></DockPanel>
+            <Border Grid.Column="1" Background="#172F3B" CornerRadius="6" Padding="18"><DockPanel>
+              <Button x:Name="PonButton" DockPanel.Dock="Right" Content="PON!" Width="125" FontSize="27" FontWeight="Bold" Background="#BCEBDC" Foreground="#183F3B" PreviewMouseLeftButtonDown="Pon_Down" PreviewMouseLeftButtonUp="Pon_Up" LostMouseCapture="Pon_LostCapture"/>
+              <StackPanel VerticalAlignment="Center"><TextBlock x:Name="LineCounter" Foreground="#97BFC9"/>
+                <TextBlock x:Name="CurrentLyric" Text="歌詞を読み込んでね" Foreground="White" FontSize="23" TextWrapping="Wrap" MaxHeight="95"/>
+                <TextBlock x:Name="NextLyric" Foreground="#97BFC9" TextWrapping="Wrap" Margin="0,8,0,0"/>
+              </StackPanel></DockPanel></Border>
+          </Grid>
+          <DockPanel Grid.Row="3" Margin="0,9,0,4"><TextBlock Text="ぐにぐに — 箱の中央で移動、左右端で時間調整。波形クリックで再生位置を移動。" VerticalAlignment="Center"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button Content="−" Click="ZoomOut_Click"/><Button Content="＋" Click="ZoomIn_Click"/></StackPanel></DockPanel>
+          <ScrollViewer Grid.Row="4" x:Name="TimelineScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" ScrollChanged="Timeline_Scroll">
+            <local:TimingSurface x:Name="Timeline" Height="210"/>
+          </ScrollViewer>
+          <DataGrid Grid.Row="5" x:Name="LyricsGrid" Margin="0,9,0,5" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" SelectionChanged="Line_Changed" MouseDoubleClick="Line_DoubleClick" CanUserAddRows="False" EnableRowVirtualization="True">
+            <DataGrid.Columns><DataGridTextColumn Header="#" Binding="{Binding Number}" Width="45"/><DataGridTextColumn Header="歌詞" Binding="{Binding Text}" Width="*"/><DataGridTextColumn Header="開始" Binding="{Binding Start}" Width="115"/><DataGridTextColumn Header="終了" Binding="{Binding End}" Width="115"/></DataGrid.Columns>
+          </DataGrid>
+          <StackPanel Grid.Row="6" Orientation="Horizontal"><TextBlock Text="開始（秒）" VerticalAlignment="Center"/><TextBox x:Name="StartSeconds" Width="90" Margin="6,0"/>
+            <TextBlock Text="終了（秒）" VerticalAlignment="Center"/><TextBox x:Name="EndSeconds" Width="90" Margin="6,0"/>
+            <TextBox x:Name="SelectedText" Width="280" Margin="6,0"/><Button Content="選択行に適用" Click="ApplyLine_Click"/>
+            <Button Content="保存" Click="Save_Click"/><Button Content="SRT出力" Click="ExportSrt_Click"/></StackPanel>
+        </Grid>
+      </TabItem>
+      <TabItem Header="  AudioAnalyzer  ">
+        <Grid Margin="20"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="190"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+          <TextBlock Text="曲を調べる" FontSize="28" FontWeight="SemiBold" Foreground="#173F46"/>
+          <TextBlock Grid.Row="1" Text="音源だけで解析できます。歌詞・PONPON・セマンティック解析は不要です。" Margin="0,10" Foreground="#52616F"/>
+          <StackPanel Grid.Row="2"><StackPanel Orientation="Horizontal"><Button Content="解析する音源を選ぶ…" Click="AnalyzeFile_Click"/>
+              <Button Content="PONPONのMusicを解析" Click="AnalyzeMusic_Click"/><Button Content="Vocal Stemを解析" Click="AnalyzeVocal_Click"/>
+              <Button Content="結果を保存…" Click="ExportAnalysis_Click"/></StackPanel>
+            <TextBlock x:Name="AnalysisLabel" Text="未解析" Margin="3,12" FontSize="17" TextWrapping="Wrap"/>
+          </StackPanel>
+          <local:TimingSurface Grid.Row="3" x:Name="AnalysisWave" Height="180"/>
+          <DockPanel Grid.Row="4" Margin="0,14,0,0"><TextBlock DockPanel.Dock="Top" Text="推定コード（メジャー／マイナー三和音）— 自動推定のため、耳でも確認してください。" Margin="0,0,0,8"/>
+            <DataGrid x:Name="ChordGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"><DataGrid.Columns>
+              <DataGridTextColumn Header="開始（秒）" Binding="{Binding Start, StringFormat=F3}" Width="140"/><DataGridTextColumn Header="終了（秒）" Binding="{Binding End, StringFormat=F3}" Width="140"/><DataGridTextColumn Header="推定コード" Binding="{Binding Label}" Width="*"/>
+            </DataGrid.Columns></DataGrid>
+          </DockPanel>
+        </Grid>
+      </TabItem>
+    </TabControl>
+  </DockPanel>
+</Window>

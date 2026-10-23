@@ -1,135 +1,116 @@
 # FLAMORIS Studio Client
 
-Planned Windows lyric/audio workspaces and a local bridge for FLAMORIS Studio, keeping large media close to the workstation.
+**Windows lyric timing and local music analysis — PONPON / ぐにぐに / AudioAnalyzer.**
 
-**Status: planning/foundation only. No runtime, transport, authentication, discovery protocol, or tool surface is implemented yet.**
+音源を開き、歌詞を貼ってポンポン。ぐにぐにで微調整し、字幕を出力できます。
+AudioAnalyzerは歌詞なしで音楽の波形・強弱・BPM・拍・推定キー／コードを調べます。
+大きな音源はローカルに置いたまま扱います。
 
-FLAMORIS Studio Client is planned to host native Windows PONPON lyric-timing and independent AudioAnalyzer workspaces, alongside the machine-local bridge between Studio and local production tools. This expands the original bridge-only plan; no runtime is implemented yet.
+**Status: first local runtime implementation candidate.** Headless contracts,
+synthetic audio and Windows build/startup are checked separately from real
+Windows audio/UI acceptance. See [PROGRESS.md](PROGRESS.md). No Studio login,
+network transport, discovery, remote filesystem API, MCP tools or tool launcher
+are implemented in this slice.
 
-## Desktop direction — 2026-10-24
+## Local workspaces
 
-- **PONPON**: open audio, paste lyrics and record immediately; native Windows ぐにぐに timing edits, selected-line playback, Undo/Redo, save/reopen and SRT export. Analysis is optional.
-- **AudioAnalyzer**: analyze a selected music file without PONPON or lyric data; waveform, dynamics, BPM/beats and estimated key/chords. Semantic analysis is not required. Large files stay local by default.
-- **KineticTypo / キネタイ**: a separate C# UI / C++ GPU text executable in the [Kachinco repository](https://github.com/flamoris-jp/flamoris-kachinco), launched from Kachinco.
+| Workspace | Implemented scope |
+| --- | --- |
+| **PONPON** | Open music, paste lyrics and hold/release to record line times. Native Windows controls; no manual song directory or song.json. |
+| **ぐにぐに / いじいじ** | Waveform and energy, drag move/trim, zoom/scroll, selected-line audition, numeric/text inspector, Undo/Redo. Optional aligned Vocal Stem. |
+| **みるみる** | Preview the lyric at the playback position. |
+| **Persistence / exchange** | Precise local `.fponproj`, original import snapshot, optimistic atomic save, SRT, legacy PONPON JSON and portable versioned timing JSON. |
+| **AudioAnalyzer** | Independent audio-only worker; waveform, relative RMS dynamics, estimated BPM/beats, key and major/minor-triad chords. Cancel, source fingerprint/stale checks and JSON export. |
 
-Initial defaults are Windows x64, C# / WPF and .NET 10 for the local shell; existing Python audio algorithms may run in a bounded worker. Local workspaces work without a Studio connection. Their documents/results have explicit module ownership; the bridge does not duplicate other products' state.
+The UI is C# / WPF (.NET 10); a bounded Python/NumPy + FFmpeg worker processes
+audio in chunks. Playback uses the prepared local PCM file and the media
+transport's position. The UI timer redraws, rather than advancing a second clock.
+No semantic interpretation, paid API, lyric prerequisite or model weight is used.
 
-[Implementation plan, boundaries and acceptance](docs/desktop-lyrics-and-audio.md). **All items in this section are planned, not implemented.**
+## Start on Windows
 
-## Why this exists
+Build prerequisites: .NET 10 SDK and PowerShell. Audio prerequisites: Python 3.11+
+and FFmpeg/FFprobe on PATH. From a checkout:
 
-FLAMORIS projects can contain large video, audio, image, and project files.
-
-Keeping those files permanently on the Studio server would create unnecessary storage, transfer, and authority problems.
-
-Studio Client therefore keeps machine-local resources local and exposes only explicit, bounded capabilities to Studio.
-
-```text
-FLAMORIS Studio
-      |
-      +-- Studio Client
-              |
-              +-- local projects
-              +-- large media
-              +-- production tools
-              +-- bounded upload/download bridge
+```powershell
+./product/packaging/publish-windows.ps1
+cd ./artifacts/windows/FLAMORIS-StudioClient-win-x64
+./setup-audio.ps1
+./StudioClient.exe
 ```
 
-## Planned responsibilities
+The portable .NET app is self-contained. `setup-audio.ps1` creates a local Python
+environment and installs NumPy; it needs download access once. Ordinary editing
+and analysis work offline. An existing environment can be selected with
+`FLAMORIS_STUDIO_CLIENT_PYTHON`.
 
-The client may eventually provide:
+[Windows user guide](docs/windows-user-guide.md) ·
+[physical acceptance](staging/windows-ponpon-audio.md) ·
+[local schema, process and storage contracts](docs/local-runtime-contract.md)
 
-- local project discovery
-- local file read/write through explicit contracts
-- large media access
-- local tool launch
-- upload/download bridging
-- Studio session association
-- connection to machine-local production tools
+## Boundaries and limits
 
-The bridge protocol and implementation are not defined yet. Desktop module defaults and the migration direction are described in the linked plan.
+PONPON owns its lyric document and history. AudioAnalyzer owns derived results
+bound to source identity. The future bridge routes explicit references and will
+not become a second owner of Studio, Kachinco, Cutwork or 2D documents.
 
-## Authority boundary
+Local file dialogs select the resources used by this app. Portable timing JSON
+excludes local media paths; native projects retain explicitly selected paths.
+Analysis/export verifies the source content hash. Original imports are not
+rewritten; conflicts preserve the saved document.
 
-Studio Client is a bridge, not a second owner of application state.
+Admission limits are one worker, 8 GiB input, two hours and a 30-minute deadline.
+Waveform/energy output is reduced to 100 ms bins; a two-hour audition WAV can
+need about 1.4 GB of temporary disk. These are bounds, not performance guarantees.
+Key/chord/BPM outputs are estimates, not definitive musical annotations. Chords
+currently cover major/minor triads; there is no automatic lyric transcription.
+The current result can be exported, but there is no persistent analysis-job store
+or saved-analysis import UI. Actual pointer/DPI, sound, latency and representative
+large-file performance require Windows physical acceptance.
 
-FLAMORIS products such as Cutwork, Kachinco, and FLAMORIS 2D remain authoritative for their own project/document state and editing behavior.
+## Repository allocation and next work
 
-The client must not silently copy entire projects into a competing state model.
+The 2026-10-24 owner decision expands the original bridge-only repository plan.
+PONPON/Analyzer live here. **KineticTypo / キネタイ** lives in
+[Kachinco](https://github.com/flamoris-jp/flamoris-kachinco) as a separate C# UI /
+C++ GPU executable. This app exports timing JSON/SRT; native KineticTypo JSON
+import remains the consuming product's implementation/acceptance responsibility.
 
-## Asset references
+[Desktop migration plan](docs/desktop-lyrics-and-audio.md) ·
+[implementation Issue #4](https://github.com/flamoris-jp/flamoris-studio-client/issues/4)
 
-Studio-facing integration should prefer opaque asset references over exposing arbitrary local paths.
+Later Studio/MCP integration must define explicit account/session ownership,
+opaque asset references, allowed operations/roots, resource limits, revocation,
+reparse/path rejection and reconnect without replay. No generic remote path or
+command interface is exposed by the local workspaces.
 
-```text
-AssetRef != FilePath
+## Development
+
+```powershell
+python -m pip install -r product/audio-worker/requirements.txt
+python -m unittest discover -s test/audio -v
+dotnet test test/StudioClient.Tests/StudioClient.Tests.csproj -c Release
+dotnet build StudioClient.slnx -c Release
 ```
 
-A future Studio request might refer to an asset owned by a specific client session or machine. The client resolves that reference locally and performs only the explicitly authorized operation.
+Normal tests use synthetic media and temporary files, without production assets,
+private hosts or provider credentials. Windows CI also packages the app and
+captures its startup view. An automated startup is not physical audio/UI QA.
 
-Large files should be transferred only when needed. Metadata, previews, ranges, or references should be preferred when the complete payload is unnecessary.
+## Related products
 
-## Security direction
+- [Studio](https://github.com/flamoris-jp/flamoris-studio) — creative control center
+- [Kachinco](https://github.com/flamoris-jp/flamoris-kachinco) — video editing / KineticTypo
+- [2D](https://github.com/flamoris-jp/flamoris-2D) — animation / character authoring
+- [Cutwork](https://github.com/flamoris-jp/flamoris-cutwork) — image preparation
+- [Commons](https://github.com/flamoris-jp/flamoris-commons) — ecosystem boundaries
 
-This component will sit close to local files and desktop tools, so security is part of the architecture.
+## License and support
 
-Future implementations must:
+Code and documentation are Apache-2.0 unless stated otherwise. Commercial use is
+welcome. Third-party software, media, fonts, models and other assets have their
+own terms. This implementation uses .NET/WPF, Python, NumPy and an externally
+installed FFmpeg; no model weights, fonts or production media are bundled.
 
-- use least-privilege access;
-- avoid arbitrary filesystem exposure;
-- bind access to an explicit Studio/client session;
-- validate all remote input before treating it as a path, command, URL, or tool argument;
-- never log credentials, tokens, private keys, or sensitive file contents by default;
-- make local read/write/tool-launch permissions explicit and revocable;
-- bound transfer sizes, concurrency, timeouts, and resource use.
-
-## Current status
-
-Repository foundation only.
-
-Runtime, transport, authentication, discovery protocol, and tool surface are intentionally not claimed as implemented yet.
-
-The next planned local slice is PONPON, followed by the independent audio-only Analyzer. Studio connection/authorization and remote capabilities remain a separate implementation slice.
-
-## Related repositories
-
-- [FLAMORIS Studio](https://github.com/flamoris-jp/flamoris-studio) — creative control center
-- [FLAMORIS Commons](https://github.com/flamoris-jp/flamoris-commons) — shared foundations and repository policy
-- [FLAMORIS MCP Core](https://github.com/flamoris-jp/flamoris-mcp-core) — shared .NET MCP infrastructure where applicable
-- [FLAMORIS Cutwork](https://github.com/flamoris-jp/flamoris-cutwork) — image decomposition and repair
-- [FLAMORIS Kachinco](https://github.com/flamoris-jp/flamoris-kachinco) — AI-native video editing and compositing
-- [FLAMORIS 2D](https://github.com/flamoris-jp/flamoris-2D) — 2D animation and character authoring
-
-## Philosophy
-
-Use it however you like.
-
-Commercial use is welcome and does not require permission.
-
-FLAMORIS software is provided as-is and does not include guaranteed individual support. AI-assisted self-support is encouraged.
-
-If FLAMORIS helps you or you find it interesting, your support helps fund development and keeps the project growing. 🌱  
-<sub>Mostly GPU bills.</sub>
-
-## License
-
-Code and documentation in this repository are licensed under the [Apache License 2.0](LICENSE), unless otherwise noted.
-
-Third-party software, AI models, media, project files, and other non-code assets may use separate licenses and terms.
-
----
-
-## 日本語
-
-FLAMORIS Studio Clientは、Windows版PONPON・ぐにぐに・AudioAnalyzerと、FLAMORIS Studioへのローカルブリッジを実装する予定のリポジトリです。2026-10-24に当初のブリッジ専用計画を拡張しました。キネタイはカチンコのリポジトリに別EXEとして置きます。
-
-大容量ファイルをStudioサーバーへ恒久保存せず、必要なものだけを明示的な契約で扱うことを目的にします。
-
-Studioへ任意のローカルパスをそのまま公開するのではなく、可能な限りasset referenceを使います。
-
-また、Cutwork / Kachinco / FLAMORIS 2Dなど各アプリ自身が持つauthorityを奪わず、Studio Clientは橋渡しに徹します。
-
-現在はリポジトリ基盤のみです。実装済みでないtransport、認証、filesystem APIなどをREADME上で先取りして約束しません。
-
-勝手に使ってください。  
-改造しても、組み込んでも、面白いものや変なものを作ってもOKです。
+FLAMORIS is provided as-is without guaranteed individual support. Source, Issues,
+tests and diagnostics support AI-assisted self-service. 勝手に使ってください。
