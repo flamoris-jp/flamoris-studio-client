@@ -65,7 +65,12 @@ public partial class MainWindow : Window
             if (Environment.GetCommandLineArgs().Contains("--smoke"))
             {
                 await Task.Delay(250); UpdateLayout();
-                await RunUiSmoke();
+                try { await RunUiSmoke(); }
+                catch (Exception error)
+                {
+                    await System.IO.File.WriteAllTextAsync(System.IO.Path.Combine(AppContext.BaseDirectory, "ui-smoke-error.txt"), error.ToString());
+                    Application.Current.Shutdown(1); return;
+                }
                 Close();
             }
         };
@@ -271,7 +276,7 @@ public partial class MainWindow : Window
         held = null; spaceHeld = false;
         if (PonButton is not null) { PonButton.Tag = null; PonButton.ReleaseMouseCapture(); }
     }
-    private void Pon_Down(object sender, MouseButtonEventArgs e) { if (!spaceHeld) { BeginHold(); if (held.HasValue) PonButton.CaptureMouse(); } e.Handled = true; }
+    private void Pon_Down(object sender, MouseButtonEventArgs e) { if (!spaceHeld) { PonButton.Focus(); BeginHold(); if (held.HasValue) PonButton.CaptureMouse(); } e.Handled = true; }
     private void Pon_Up(object sender, MouseButtonEventArgs e) { if (!spaceHeld) { ReleaseHold(); PonButton.ReleaseMouseCapture(); } e.Handled = true; }
     private void Pon_LostCapture(object sender, MouseEventArgs e) => AbortHold();
     private async void Key_Down(object sender, KeyEventArgs e)

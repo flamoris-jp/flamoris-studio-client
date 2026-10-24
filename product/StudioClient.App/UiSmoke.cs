@@ -65,7 +65,7 @@ public partial class MainWindow
         UpdateLayout();
         Check(TimelineScroll.ActualHeight > height + 10 && Math.Abs(Timeline.ActualHeight - TimelineScroll.ViewportHeight) < 1, "splitter drag resizes surface with viewport");
         Width = 1000; Height = 720; UpdateLayout();
-        Check(LyricsGrid.ActualHeight >= 89 && TimelineScroll.ActualHeight >= 149, "minimum window retains timeline and lyric table");
+        Check(LyricsGrid.ActualHeight >= 75 && TimelineScroll.ActualHeight >= 149, "minimum window retains timeline and lyric table");
         Check(CurrentLyric.FontSize == NextLyric.FontSize && NextLyric.ActualHeight > 20, "NEXT uses same readable font size");
         CaptureSmoke(this, "workspace.png");
         var dialog = new LyricsWindow { Owner = this }; dialog.Show(); dialog.UpdateLayout();

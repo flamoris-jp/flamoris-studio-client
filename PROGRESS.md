@@ -1,5 +1,25 @@
 # StudioClient delivery evidence
 
+## 2026-10-24: PONPON usability follow-up (#7–#9)
+
+Implemented in PR #10:
+
+- Dedicated draft lyrics window: paste, strict UTF-8 TXT, existing JSON/SRT,
+  shared picker/drop import path, replacement confirmation and undoable publication.
+- S play/pause, Space hold/release, centered pressed PON face, equal current/NEXT
+  text size and a timeline/table splitter with vertically responsive drawing.
+- Multi-row/all-row shifts, 1–20ms presets, explicit manual units and optional
+  predecessor-end alignment/follow in one validated snapshot/history update.
+- 30 managed tests pass locally; 11 new cases cover import validation, file/drop
+  rejection, batch failure atomicity, Undo/Redo, alignment, precision and export.
+  WPF Release compilation passes with zero warnings/errors.
+- Windows CI executes synthetic UI checks and captures workspace/dialog/pressed
+  renders; exact run results and visual inspection are recorded on PR #10.
+  These checks do not certify physical Explorer drops, real key-repeat cadence,
+  sound-device timing, pointer feel or varied-DPI behavior.
+
+The app is not deployed through Studio/MCP by this change. Overall #4 remains open.
+
 ## 2026-10-24: PONPON / AudioAnalyzer local candidate
 
 Implemented local scope for Issue #4:

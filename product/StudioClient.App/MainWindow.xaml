@@ -72,23 +72,23 @@
             </Grid>
           </Border>
           <StackPanel Grid.Row="3" Margin="0,7,0,4">
-            <DockPanel><TextBlock Text="ぐにぐに — 中央で移動／端で時間調整。境界を上下にドラッグで領域の高さ変更。" VerticalAlignment="Center"/>
-              <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button Content="−" Click="ZoomOut_Click"/><Button Content="＋" Click="ZoomIn_Click"/></StackPanel></DockPanel>
             <WrapPanel>
+              <TextBlock Text="ぐにぐに" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,7,0" ToolTip="箱の中央で移動／左右端で時間調整。下の境界を上下にドラッグして領域の高さを変更。"/>
+              <Button Content="−" Click="ZoomOut_Click" Padding="8,6"/><Button Content="＋" Click="ZoomIn_Click" Padding="8,6"/>
               <TextBlock Text="対象" VerticalAlignment="Center" Margin="0,0,5,0"/>
               <ComboBox x:Name="EditScope" Width="92" SelectedIndex="0" Margin="0,3,7,3"><ComboBoxItem Content="選択行"/><ComboBoxItem Content="全行"/></ComboBox>
               <ComboBox x:Name="Adjustment" IsEditable="True" Width="100" Text="10ms" Margin="0,3,5,3" ToolTip="単位なしはms。例：10ms、0.01秒"/>
               <Button Content="← 前へ" Click="ShiftEarlier_Click"/><Button Content="後ろへ →" Click="ShiftLater_Click"/>
               <CheckBox x:Name="FollowPrevious" Content="前行の終了がついてく" VerticalAlignment="Center" Margin="10,0" ToolTip="開始を変更すると直前行の終了も追従します。初回は「今そろえる」。"/>
               <Button Content="今そろえる" Click="AlignPrevious_Click"/>
-              <TextBlock Text="単位なし＝ms ／ Ctrl・Shiftで複数行選択" Foreground="#52616F" VerticalAlignment="Center" Margin="8,0"/>
+
             </WrapPanel>
           </StackPanel>
           <ScrollViewer Grid.Row="4" x:Name="TimelineScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" ScrollChanged="Timeline_Scroll" SizeChanged="Timeline_SizeChanged">
             <local:TimingSurface x:Name="Timeline" Height="160"/>
           </ScrollViewer>
           <GridSplitter x:Name="RegionSplitter" Grid.Row="5" Height="8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeDirection="Rows" ResizeBehavior="PreviousAndNext" Background="#BBCAD2" Cursor="SizeNS" ToolTip="上下にドラッグして、ぐにぐにと歌詞一覧の高さを調整"/>
-          <DataGrid Grid.Row="6" x:Name="LyricsGrid" Margin="0,9,0,5" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Extended" SelectionUnit="FullRow" SelectionChanged="Line_Changed" MouseDoubleClick="Line_DoubleClick" CanUserAddRows="False" EnableRowVirtualization="True">
+          <DataGrid Grid.Row="6" x:Name="LyricsGrid" Margin="0,9,0,5" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Extended" SelectionUnit="FullRow" ToolTip="Ctrl・Shiftで複数行選択できます。" SelectionChanged="Line_Changed" MouseDoubleClick="Line_DoubleClick" CanUserAddRows="False" EnableRowVirtualization="True">
             <DataGrid.Columns><DataGridTextColumn Header="#" Binding="{Binding Number}" Width="45"/><DataGridTextColumn Header="歌詞" Binding="{Binding Text}" Width="*"/><DataGridTextColumn Header="開始" Binding="{Binding Start}" Width="115"/><DataGridTextColumn Header="終了" Binding="{Binding End}" Width="115"/></DataGrid.Columns>
           </DataGrid>
           <WrapPanel Grid.Row="7"><TextBlock Text="開始（秒）" VerticalAlignment="Center"/><TextBox x:Name="StartSeconds" Width="90" Margin="6,0"/>
