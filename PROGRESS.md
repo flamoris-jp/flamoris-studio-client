@@ -1,5 +1,25 @@
 # StudioClient delivery evidence
 
+## 2026-10-24: stretch-crash report hardening and recovery (#13)
+
+- Owner reports unexpected exit while stretching a lyric-box edge. No exception
+  trace from that run is available; the original root cause is not confirmed.
+- Bound pointer deltas before conversion/addition, choose the nearest edge for
+  short boxes, and validate all preview rows before rendering/committing.
+  Invalid previews, capture loss and zoom cancel the gesture without publication.
+- Add per-command atomic recovery checkpoints, inactive-instance detection and
+  explicit startup restoration without overwriting a manual save.
+- Reuse `Flamoris.Logging` 1.0.0 for bounded local diagnostics with only operation
+  codes, exception types/HResults and method frames. Unknown UI exceptions remain
+  fatal rather than being globally swallowed.
+- 41 managed tests pass locally, including new drag-boundary, sub-tick, recovery
+  isolation/validation/reparse and diagnostic privacy checks. WPF Release build
+  passes with zero warnings/errors. Windows synthetic UI adds both-edge resize,
+  undo, invalid-follow rejection, capture loss and invalid-coordinate checks.
+  CI execution evidence is recorded on the implementation PR.
+- Keep #13 open for actual failure-trace/reproduction confirmation; compilation
+  and synthetic drag checks are not proof of the reported physical crash cause.
+
 ## 2026-10-24: PONPON retry, annotations and lyric follow (#11)
 
 - Whole annotation-only tag/parenthesis rows are excluded from working lyrics,

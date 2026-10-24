@@ -62,3 +62,20 @@ Synthetic UI smoke checks in CI supplement these physical pointer/audio checks.
   Compare this with restoring the original imported lyrics/timing.
 
 Synthetic CI checks are not physical audio/key/device/DPI acceptance.
+
+
+## Stretch and recovery acceptance (#13)
+
+- Stretch left/right ends repeatedly; try a one-tick/very short line, crossing
+  the opposite end, before zero and outside the viewport. Check one Undo per
+  completed gesture. With predecessor-follow enabled, an invalid predecessor
+  range cancels the gesture and preserves the last committed project.
+- Lose capture/focus or zoom midway; release must not publish the discarded draft.
+- Create an unsaved project, commit edits, then terminate the app process. Restart
+  and confirm recovery; compare text/IDs/ticks/original snapshot/media references.
+  Confirm the manually saved project file was not modified by recovery.
+- Decline recovery, run two instances, save/discard normally, and check that only
+  inactive unexpected-exit checkpoints are offered. Test an unwritable recovery
+  directory and verify the persistent warning plus ordinary Ctrl+S operation.
+- For an actual repeat of the reported crash, retain the sanitized log and exact
+  edge/follow/zoom conditions. Root-cause closure requires that evidence.

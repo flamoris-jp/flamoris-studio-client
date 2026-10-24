@@ -111,6 +111,27 @@ ticks, original imported lyrics, paths and IDs; the portable timing JSON exclude
 machine paths. Relative media relocation is not automatic: use the file picker to
 select replacement audio. Missing media does not prevent lyric edits or export.
 
+## Recovery after an unexpected exit
+
+Completed edits are also saved to a local recovery checkpoint. If StudioClient
+ends unexpectedly, restart it and choose **はい** in **PONPONの復旧**. The recovered
+project is unsaved: choose a destination with normal Save. The original project
+is not overwritten automatically. Music/stem references remain; press Play to
+prepare the selected source again. This does not recover an unfinished drag.
+
+Normal Save or a confirmed normal close/discard clears this session's checkpoint.
+If the status bar says **復旧保存なし**, use Ctrl+S: the recovery location is not
+writable or the document exceeds its bound. Recovery cannot protect edits that
+never completed, disk failure, or deleted checkpoints.
+
+If a stretch is rejected (for example, predecessor following would make a line
+zero-length), the gesture is canceled and the last committed timing remains.
+For another unexpected exit, retain the log in
+`%LOCALAPPDATA%/FLAMORIS/StudioClient/logs/studioclient.log` and note whether the
+left/right edge was moved and whether **前行の終了がついてく** was enabled.
+The log contains exception types and method frames, without raw lyrics or media
+paths. Recovery files contain the local project; do not confuse them with logs.
+
 ## Analyze music without lyrics
 
 Open the **AudioAnalyzer** workspace and choose a music file, or analyze the Music

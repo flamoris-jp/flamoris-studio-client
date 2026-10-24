@@ -92,3 +92,40 @@ changes in that command, including predecessor following; normal Undo/Redo keeps
 the same metadata. A full timing reset is one validated ordinary command.
 Lyric-list follow uses virtualized item scrolling and one preceding row. It
 changes neither edit selection nor canonical timing nor the playback clock.
+
+
+## Local recovery and failure diagnostics (#13)
+
+After each completed document command, a synchronous bounded checkpoint of the
+last validated project is flushed and atomically replaced under
+`%LOCALAPPDATA%/FLAMORIS/StudioClient/recovery`. This is separate from ordinary Save
+and never uses the source project's path. No partial drag preview is checkpointed.
+Each running instance has its own GUID checkpoint and exclusive live marker;
+startup lists at most 20 inactive candidates from at most 128 filenames, without
+recursion. Files are at most 16 MiB, schema-validated, and reparse/link entries are
+rejected. A denied/unwritable recovery location visibly disables this protection
+without preventing normal editing or explicit Save. Very large documents or slow
+local storage can make synchronous checkpoint publication perceptible.
+
+The startup prompt restores an inactive candidate only on Yes, opens it as an
+unsaved document and retains source media references. A new checkpoint must be
+published before removing its predecessor. No leaves old candidates available;
+explicit save, normal close/discard and replacement with a clean document remove
+this instance's checkpoint. Other running instances are not recovery candidates.
+Dispose alone preserves a checkpoint, modeling abrupt process closure. This is
+not a guarantee against disk failure, power loss or an OS/native crash before the
+last command completed. Audio caches and ongoing worker jobs are not recovered.
+
+`Flamoris.Logging` 1.0.0 provides rotating local diagnostics in
+`%LOCALAPPDATA%/FLAMORIS/StudioClient/logs/studioclient.log` (2 MiB, three files).
+Only controlled operation codes, exception types/HResults, method frames and
+assembly version are recorded. Raw exception messages, lyric text, media content,
+source paths and credentials are excluded. No remote telemetry is added.
+Unhandled UI/process errors are logged; unknown dispatcher errors are not globally
+swallowed to keep running. Recovery uses a previously validated checkpoint.
+
+Stretch/move previews are bounded before numeric conversion, validated including
+predecessor changes, and published only when valid. Rejection or capture loss
+cancels the entire gesture without a later release committing a stale draft.
+The reported physical stretch crash lacks an exception trace and remains an
+unconfirmed root cause; these changes are hardening and evidence collection.
