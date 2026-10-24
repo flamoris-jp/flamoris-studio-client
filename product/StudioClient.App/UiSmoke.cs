@@ -66,6 +66,9 @@ public partial class MainWindow
         Check(TimelineScroll.ActualHeight > height + 10 && Math.Abs(Timeline.ActualHeight - TimelineScroll.ViewportHeight) < 1, "splitter drag resizes surface with viewport");
         Width = 1000; Height = 720; UpdateLayout();
         Check(LyricsGrid.ActualHeight >= 75 && TimelineScroll.ActualHeight >= 149, "minimum window retains timeline and lyric table");
+        var inspector = (FrameworkElement)SelectedText.Parent; var panel = (FrameworkElement)LyricsGrid.Parent;
+        Check(inspector.TranslatePoint(new Point(0, inspector.ActualHeight), panel).Y <= panel.ActualHeight + .5,
+            "minimum window keeps entire timing inspector and save buttons inside workspace");
         Check(CurrentLyric.FontSize == NextLyric.FontSize && NextLyric.ActualHeight > 20, "NEXT uses same readable font size");
         CaptureSmoke(this, "workspace.png");
         var dialog = new LyricsWindow { Owner = this }; dialog.Show(); dialog.UpdateLayout();

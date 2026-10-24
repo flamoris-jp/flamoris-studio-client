@@ -40,17 +40,17 @@
             <TextBlock x:Name="MusicLabel" Text="音源未選択" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="200" Margin="8,0"/>
             <Button Content="歌詞を読み込む／貼り付ける…" Click="Import_Click"/>
           </WrapPanel>
-          <WrapPanel Grid.Row="1" Margin="0,5">
+          <WrapPanel Grid.Row="1">
             <Button Content="▶ / Ⅱ 再生・停止" Click="Play_Click"/><Button Content="選択行から再生" Click="PlaySelected_Click"/><Button Content="先頭へ" Click="Start_Click"/>
             <TextBlock x:Name="ClockText" Text="00:00.000" FontSize="20" FontFamily="Consolas" VerticalAlignment="Center" Margin="15,0"/>
             <TextBlock Text="S：再生 / Space長押し：PON" Foreground="#52616F" VerticalAlignment="Center"/>
             <CheckBox x:Name="PreviewLyrics" Content="みるみる" Margin="14,0" VerticalAlignment="Center" Unchecked="Preview_Unchecked" ToolTip="再生位置の歌詞をプレビューします。"/>
           </WrapPanel>
-          <Border Grid.Row="2" Background="#172F3B" CornerRadius="6" Padding="14" MinHeight="142">
+          <Border Grid.Row="2" Background="#172F3B" CornerRadius="6" Padding="14" MinHeight="120">
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="230"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
               <Grid Margin="0,0,12,0"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                 <TextBlock x:Name="LineCounter" Foreground="#97BFC9" TextWrapping="Wrap"/>
-                <TextBlock Grid.Row="1" x:Name="CurrentLyric" Text="歌詞を読み込んでね" Foreground="White" FontSize="23" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="82" VerticalAlignment="Center"/>
+                <TextBlock Grid.Row="1" x:Name="CurrentLyric" Text="歌詞を読み込んでね" Foreground="White" FontSize="23" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="66" VerticalAlignment="Center"/>
               </Grid>
               <Button Grid.Column="1" x:Name="PonButton" Content="PON!" Width="210" Height="82" FontSize="29" FontWeight="Bold" Background="#BCEBDC" Foreground="#183F3B"
                       PreviewMouseLeftButtonDown="Pon_Down" PreviewMouseLeftButtonUp="Pon_Up" LostMouseCapture="Pon_LostCapture" ToolTip="Spaceを押している間も記録します。">
@@ -67,7 +67,7 @@
               </Button>
               <Grid Grid.Column="2" Margin="12,0,0,0"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                 <TextBlock Text="NEXT" Foreground="#97BFC9"/>
-                <TextBlock Grid.Row="1" x:Name="NextLyric" Foreground="#C1E2E8" FontSize="23" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="82" VerticalAlignment="Center"/>
+                <TextBlock Grid.Row="1" x:Name="NextLyric" Foreground="#C1E2E8" FontSize="23" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="66" VerticalAlignment="Center"/>
               </Grid>
             </Grid>
           </Border>
