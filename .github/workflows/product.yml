@@ -1,0 +1,72 @@
+name: StudioClient product
+on:
+  push:
+    branches-ignore: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  contracts:
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: FFmpeg (Linux)
+        if: runner.os == 'Linux'
+        timeout-minutes: 4
+        run: |
+          if ! command -v ffmpeg >/dev/null; then
+            # The hosted Azure mirror stalled during CI; retain signed Ubuntu
+            # packages while using the official archive for this ephemeral runner.
+            if [ -f /etc/apt/apt-mirrors.txt ]; then
+              printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+            fi
+            sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update
+            sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y --no-install-recommends ffmpeg
+          fi
+      - name: FFmpeg (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg --yes --no-progress
+      - run: python -m pip install -r product/audio-worker/requirements.txt
+      - run: python -m unittest discover -s test/audio -v
+      - run: dotnet test test/StudioClient.Tests/StudioClient.Tests.csproj -c Release -p:UseSharedCompilation=false
+      - name: Windows build and portable bundle
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $folder = './artifacts/windows/FLAMORIS-StudioClient-win-x64'
+          New-Item -ItemType Directory -Path $folder -Force | Out-Null
+          Set-Content (Join-Path $folder '__package_fixture.fponproj') 'must not enter distribution'
+          ./product/packaging/publish-windows.ps1
+          $zip = [IO.Compression.ZipFile]::OpenRead("$folder.zip")
+          try {
+            if ($zip.Entries.FullName -contains '__package_fixture.fponproj') { throw 'User file entered the distribution.' }
+          } finally { $zip.Dispose() }
+          Remove-Item (Join-Path $folder '__package_fixture.fponproj')
+      - name: Packaged startup
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $app = Start-Process ./artifacts/windows/FLAMORIS-StudioClient-win-x64/StudioClient.exe -ArgumentList '--smoke' -PassThru
+          if (-not $app.WaitForExit(30000)) { $app.Kill(); throw 'Startup timed out.' }
+          if ($app.ExitCode -ne 0) { throw "Startup failed: $($app.ExitCode)" }
+      - uses: actions/upload-artifact@v4
+        if: always() && runner.os == 'Windows'
+        with:
+          name: FLAMORIS-StudioClient-win-x64
+          path: |
+            artifacts/windows/FLAMORIS-StudioClient-win-x64.zip
+            artifacts/windows/FLAMORIS-StudioClient-win-x64/startup.png
+          retention-days: 7

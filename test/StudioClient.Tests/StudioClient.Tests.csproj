@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><IsTestProject>true</IsTestProject><IsPackable>false</IsPackable></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../product/StudioClient.Infrastructure/StudioClient.Infrastructure.csproj" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.0" />
+    <PackageReference Include="MSTest.TestAdapter" Version="4.4.0" />
+    <PackageReference Include="MSTest.TestFramework" Version="4.4.0" />
+  </ItemGroup>
+  <ItemGroup><None Include="../../product/audio-worker/worker.py" Link="audio-worker/worker.py" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+</Project>

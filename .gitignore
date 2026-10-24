@@ -31,3 +31,9 @@ Thumbs.db
 *.log
 tmp/
 temp/
+
+# Python audio worker
+**/__pycache__/
+**/.venv/
+*.tmp
+*_wpftmp.csproj
