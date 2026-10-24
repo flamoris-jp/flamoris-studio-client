@@ -29,3 +29,18 @@ mark them complete.
 
 Studio/MCP binding, remote grants, automatic tool launch and cross-app editing
 are later scopes and are not part of the local-runtime acceptance claim.
+
+
+## Follow-up UX acceptance (#7–#9)
+
+- [ ] Dedicated lyrics window: paste, TXT open/drop, UTF-8 BOM/Japanese/newlines.
+- [ ] JSON/SRT open/drop preserves timings; editing the draft clearly resets them.
+- [ ] Cancel/rejected input/replacement cancel protects current document and draft.
+- [ ] S play/pause, Space hold/release, mouse PON; text input, repeat, focus loss.
+- [ ] Centered button depression and equally readable current/NEXT lyrics.
+- [ ] Splitter drag resizes waveform/table at minimum size, maximized and varied DPI.
+- [ ] Ctrl/Shift multi-selection and all/selected adjustment, units, 1–20ms presets.
+- [ ] Predecessor alignment/follow during move/trim/numeric/recording; batch Undo/Redo.
+- [ ] Boundary errors preserve every row; pending rows/first row are handled clearly.
+
+Synthetic UI smoke checks in CI supplement these physical pointer/audio checks.

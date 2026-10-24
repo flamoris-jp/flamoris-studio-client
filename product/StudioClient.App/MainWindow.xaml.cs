@@ -31,6 +31,8 @@ public partial class MainWindow : Window
     private CancellationTokenSource? jobCancellation;
     private Task<AudioJobResult>? activeJob;
     private Guid? selected;
+    private readonly HashSet<Guid> selectedIds = [];
+    private bool selectingGrid, spaceHeld;
     private (Guid Id, long Start, long Revision)? held;
     private bool playing, mediaReady, suppressSource, closingAllowed, analysisStale, playAfterOpen;
     private int timerCount;
@@ -42,17 +44,20 @@ public partial class MainWindow : Window
     {
         saved = session.Project;
         InitializeComponent();
-        AnalysisWave.Fit = true;
+        AnalysisWave.Fit = true; Timeline.Focusable = true;
+        Adjustment.ItemsSource = Enumerable.Range(1, 20).Select(i => $"{i}ms").ToArray(); Adjustment.Text = "10ms";
         session.Changed += Refresh;
-        Timeline.SelectLine += id => { selected = id; SelectGrid(); UpdateInspector(); };
+        Timeline.SelectLine += id => { selected = id; selectedIds.Clear(); selectedIds.Add(id); SelectGrid(); UpdateInspector(); };
         Timeline.Seek += ticks => { AbortHold(); player.Position = TimeSpan.FromTicks(Math.Clamp(ticks, 0, LyricTime.FromSeconds((decimal)Duration))); Tick(); };
-        Timeline.CommitRange += (id, start, end, revision) => Sync(() => session.SetRange(id, start, end, revision));
+        Timeline.CommitRange += (id, start, end, revision) => Sync(() => session.Execute(p => TimingEdits.Range(p, id, start, end, FollowPrevious.IsChecked == true), revision));
+        Timeline.PreviewEdit = (id, start, end) => TimingEdits.Range(session.Project, id, start, end, FollowPrevious.IsChecked == true).Lines;
         player.MediaOpened += (_, _) => { mediaReady = true; if (playAfterOpen) { player.Play(); playing = true; playAfterOpen = false; } Status("準備できたよ。再生しながらPON!を長押ししてね。"); };
         player.MediaFailed += (_, _) => { playing = false; mediaReady = false; AbortHold(); Status("試聴用音源を再生できませんでした。音声デバイスを確認してください。"); };
         player.MediaEnded += (_, _) => { ReleaseHold(LyricTime.FromSeconds((decimal)Duration)); player.Pause(); playing = false; Tick(); };
         timer.Tick += (_, _) => Tick(); timer.Start();
         PreviewKeyDown += Key_Down; PreviewKeyUp += Key_Up;
-        Deactivated += (_, _) => AbortHold();
+        Deactivated += (_, _) => { AbortHold(); Timeline.CancelGesture(); };
+        PreviewLostKeyboardFocus += (_, _) => { if (spaceHeld) AbortHold(); };
         Closing += ClosingAsync;
         Loaded += async (_, _) =>
         {
@@ -60,9 +65,7 @@ public partial class MainWindow : Window
             if (Environment.GetCommandLineArgs().Contains("--smoke"))
             {
                 await Task.Delay(250); UpdateLayout();
-                var bitmap = new RenderTargetBitmap((int)ActualWidth, (int)ActualHeight, 96, 96, PixelFormats.Pbgra32);
-                bitmap.Render(this); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-                using (var output = System.IO.File.Create(System.IO.Path.Combine(AppContext.BaseDirectory, "startup.png"))) encoder.Save(output);
+                await RunUiSmoke();
                 Close();
             }
         };
@@ -93,6 +96,8 @@ public partial class MainWindow : Window
             {
                 var current = session.Project.Lines.FirstOrDefault(l => l.IsTimed && l.StartTicks <= position && position < l.EndTicks);
                 CurrentLyric.Text = current?.Text ?? "";
+                var index = current is null ? -1 : session.Project.Lines.IndexOf(current);
+                NextLyric.Text = index >= 0 && index + 1 < session.Project.Lines.Length ? session.Project.Lines[index + 1].Text : "";
             }
         }
         if (++timerCount % 30 == 0 && analysis is not null && analysisPath is not null && !MetadataMatches(analysisPath, analysis.Features.Source))
@@ -115,8 +120,12 @@ public partial class MainWindow : Window
         { AbortHold(); player.Close(); playing = mediaReady = false; playingPath = null; }
         Title = $"FLAMORIS StudioClient — {System.IO.Path.GetFileName(projectPath) ?? "新規PONPON"}{(session.Project == saved ? "" : " *")}";
         MusicLabel.Text = session.Project.MusicPath is null ? "音源未選択" : System.IO.Path.GetFileName(session.Project.MusicPath);
+        selectingGrid = true;
         LyricsGrid.ItemsSource = session.Project.Lines.Select((l, i) => new LyricRow(l.Id, i + 1, l.Text, LyricTime.Display(l.StartTicks), LyricTime.Display(l.EndTicks))).ToArray();
         if (!session.Project.Lines.Any(l => l.Id == selected)) selected = session.Project.Lines.FirstOrDefault()?.Id;
+        selectedIds.RemoveWhere(id => !session.Project.Lines.Any(l => l.Id == id));
+        if (selectedIds.Count == 0 && selected is { } currentId) selectedIds.Add(currentId);
+        selectingGrid = false;
         SelectGrid(); UpdateInspector(); RefreshTimeline();
     }
     private void RefreshTimeline()
@@ -129,12 +138,20 @@ public partial class MainWindow : Window
         }
         var last = session.Project.Lines.Where(l => l.IsTimed).Select(l => (double)LyricTime.Seconds(l.EndTicks!.Value)).DefaultIfEmpty(10).Max();
         Timeline.SetData(session.Project.Lines, features, Math.Max(last, features?.Duration ?? 0), session.Revision);
-        Timeline.Selected = selected; Timeline.InvalidateVisual();
+        Timeline.Selected = selected; Timeline.SelectedIds = selectedIds.ToHashSet(); Timeline.InvalidateVisual();
     }
     private void SelectGrid()
     {
         if (LyricsGrid.ItemsSource is not LyricRow[] rows) return;
-        LyricsGrid.SelectedItem = rows.FirstOrDefault(r => r.Id == selected);
+        selectingGrid = true;
+        try
+        {
+            LyricsGrid.SelectedItems.Clear();
+            foreach (var row in rows.Where(r => selectedIds.Contains(r.Id))) LyricsGrid.SelectedItems.Add(row);
+            if (selected is { } id && rows.FirstOrDefault(r => r.Id == id) is { } active) LyricsGrid.CurrentItem = active;
+        }
+        finally { selectingGrid = false; }
+        Timeline.Selected = selected; Timeline.SelectedIds = selectedIds.ToHashSet(); Timeline.InvalidateVisual();
     }
     private void UpdateInspector()
     {
@@ -144,7 +161,7 @@ public partial class MainWindow : Window
         EndSeconds.Text = line?.EndTicks is { } end ? LyricTime.Seconds(end).ToString(CultureInfo.InvariantCulture) : "";
         SelectedText.Text = line?.Text ?? "";
         CurrentLyric.Text = line?.Text ?? "歌詞を読み込んでね";
-        NextLyric.Text = i >= 0 && i + 1 < session.Project.Lines.Length ? "next: " + session.Project.Lines[i + 1].Text : "";
+        NextLyric.Text = i >= 0 && i + 1 < session.Project.Lines.Length ? session.Project.Lines[i + 1].Text : "";
         LineCounter.Text = $"{(i >= 0 ? i + 1 : 0)} / {session.Project.Lines.Length} — {session.Project.Lines.Count(l => l.IsTimed)}行 記録済み";
     }
     private async Task<AudioJobResult> RunJob(string path, bool analyze)
@@ -231,35 +248,37 @@ public partial class MainWindow : Window
         if (held.HasValue || !mediaReady || selected is null) return;
         PreviewLyrics.IsChecked = false; UpdateInspector();
         if (!playing) { player.Play(); playing = true; }
-        held = (selected.Value, Position, session.Revision); PonButton.Background = Brushes.Gold; Status("記録中 — 離すと次の行へ");
+        held = (selected.Value, Position, session.Revision); PonButton.Tag = "Held"; Status("記録中 — 離すと次の行へ");
     }
     private void ReleaseHold(long? end = null)
     {
         if (held is not { } hold) return;
-        held = null; PonButton.Background = new SolidColorBrush(Color.FromRgb(188, 235, 220));
+        held = null; PonButton.Tag = null;
         var stop = end ?? Position;
         if (stop <= hold.Start) { Status("時間が進みませんでした。再生してから録り直してください。"); return; }
         Sync(() =>
         {
-            session.SetRange(hold.Id, hold.Start, stop, hold.Revision);
+            session.Execute(p => TimingEdits.Range(p, hold.Id, hold.Start, stop, FollowPrevious.IsChecked == true), hold.Revision);
             var lines = session.Project.Lines; var index = lines.IndexOf(lines.First(l => l.Id == hold.Id));
             selected = index + 1 < lines.Length ? lines[index + 1].Id : hold.Id;
+            selectedIds.Clear(); selectedIds.Add(selected.Value);
             SelectGrid(); UpdateInspector(); LyricsGrid.ScrollIntoView(LyricsGrid.SelectedItem);
             Status("記録しました。箱を動かして微調整できます。");
         });
     }
     private void AbortHold()
     {
-        held = null;
-        if (PonButton is not null) { PonButton.Background = new SolidColorBrush(Color.FromRgb(188, 235, 220)); PonButton.ReleaseMouseCapture(); }
+        held = null; spaceHeld = false;
+        if (PonButton is not null) { PonButton.Tag = null; PonButton.ReleaseMouseCapture(); }
     }
-    private void Pon_Down(object sender, MouseButtonEventArgs e) { BeginHold(); PonButton.CaptureMouse(); e.Handled = true; }
-    private void Pon_Up(object sender, MouseButtonEventArgs e) { ReleaseHold(); PonButton.ReleaseMouseCapture(); e.Handled = true; }
+    private void Pon_Down(object sender, MouseButtonEventArgs e) { if (!spaceHeld) { BeginHold(); if (held.HasValue) PonButton.CaptureMouse(); } e.Handled = true; }
+    private void Pon_Up(object sender, MouseButtonEventArgs e) { if (!spaceHeld) { ReleaseHold(); PonButton.ReleaseMouseCapture(); } e.Handled = true; }
     private void Pon_LostCapture(object sender, MouseEventArgs e) => AbortHold();
     private async void Key_Down(object sender, KeyEventArgs e)
     {
         if (Keyboard.Modifiers == ModifierKeys.Control)
         {
+            if (e.IsRepeat) return;
             if (e.Key == Key.S) { e.Handled = true; await Guard(async () => { await Save(false); }); }
             else if (e.Key == Key.O) { e.Handled = true; Open_Click(sender, e); }
             else if (e.Key == Key.N) { e.Handled = true; New_Click(sender, e); }
@@ -267,14 +286,34 @@ public partial class MainWindow : Window
             { e.Handled = true; AbortHold(); if (e.Key == Key.Z) session.Undo(); else session.Redo(); }
             return;
         }
-        if (WorkspaceTabs.SelectedIndex != 0 || Keyboard.Modifiers != ModifierKeys.None || Keyboard.FocusedElement is TextBoxBase) return;
-        if (e.Key == Key.Enter) { e.Handled = true; if (!e.IsRepeat) BeginHold(); }
-        if (e.Key == Key.Space) { e.Handled = true; if (!e.IsRepeat) TogglePlay(); }
+        if (WorkspaceTabs.SelectedIndex != 0 || Keyboard.Modifiers != ModifierKeys.None || IsTextEntry(Keyboard.FocusedElement)) return;
+        if (e.Key == Key.Escape) { AbortHold(); Timeline.CancelGesture(); e.Handled = true; }
+        if (e.Key == Key.S) { e.Handled = true; if (!e.IsRepeat) TogglePlay(); }
+        if (e.Key == Key.Space)
+        {
+            e.Handled = true;
+            if (!e.IsRepeat && !spaceHeld && held is null) { spaceHeld = true; BeginHold(); }
+        }
     }
-    private void Key_Up(object sender, KeyEventArgs e) { if (e.Key == Key.Enter && held.HasValue) { ReleaseHold(); e.Handled = true; } }
-    private void PasteLyrics_Click(object sender, RoutedEventArgs e) => Sync(() => { AbortHold(); session.SetLyrics(LyricsInput.Text); });
+    private static bool IsTextEntry(IInputElement? element)
+    {
+        for (var current = element as DependencyObject; current is not null; current = current is Visual ? VisualTreeHelper.GetParent(current) : LogicalTreeHelper.GetParent(current))
+            if (current is TextBoxBase or PasswordBox or ComboBox or MenuItem) return true;
+        return false;
+    }
+    private void Key_Up(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Space || !spaceHeld) return;
+        spaceHeld = false; ReleaseHold(); e.Handled = true;
+    }
     private void Line_Changed(object sender, SelectionChangedEventArgs e)
-    { if (LyricsGrid.SelectedItem is LyricRow row) { selected = row.Id; UpdateInspector(); Timeline.Selected = selected; Timeline.InvalidateVisual(); } }
+    {
+        if (selectingGrid) return;
+        AbortHold();
+        selectedIds.Clear(); foreach (var row in LyricsGrid.SelectedItems.OfType<LyricRow>()) selectedIds.Add(row.Id);
+        selected = e.AddedItems.OfType<LyricRow>().LastOrDefault()?.Id ?? LyricsGrid.SelectedItems.OfType<LyricRow>().FirstOrDefault()?.Id;
+        UpdateInspector(); Timeline.Selected = selected; Timeline.SelectedIds = selectedIds.ToHashSet(); Timeline.InvalidateVisual();
+    }
     private void Line_DoubleClick(object sender, MouseButtonEventArgs e) => PlaySelected();
     private void ApplyLine_Click(object sender, RoutedEventArgs e) => Sync(() =>
     {
@@ -283,7 +322,7 @@ public partial class MainWindow : Window
         var start = LyricTime.FromSeconds(decimal.Parse(StartSeconds.Text, CultureInfo.InvariantCulture));
         var end = LyricTime.FromSeconds(decimal.Parse(EndSeconds.Text, CultureInfo.InvariantCulture));
         var text = SelectedText.Text;
-        session.Execute(p => p with { Lines = p.Lines.Select(l => l.Id == id ? l with { Text = text, StartTicks = start, EndTicks = end } : l).ToImmutableArray() });
+        session.Execute(p => TimingEdits.Range(p, id, start, end, FollowPrevious.IsChecked == true, text));
     });
     private void Undo_Click(object sender, RoutedEventArgs e) { AbortHold(); session.Undo(); }
     private void Redo_Click(object sender, RoutedEventArgs e) { AbortHold(); session.Redo(); }
@@ -291,7 +330,8 @@ public partial class MainWindow : Window
     private void Restore_Click(object sender, RoutedEventArgs e) => Sync(() => { AbortHold(); session.Execute(p => p with { Lines = p.OriginalLines }); });
     private void ZoomIn_Click(object sender, RoutedEventArgs e) => Timeline.Zoom(1.5);
     private void ZoomOut_Click(object sender, RoutedEventArgs e) => Timeline.Zoom(1 / 1.5);
-    private void Timeline_Scroll(object sender, ScrollChangedEventArgs e) => Timeline.SetViewport(e.HorizontalOffset, e.ViewportWidth);
+    private void Timeline_Scroll(object sender, ScrollChangedEventArgs e)
+    { Timeline.SetViewport(e.HorizontalOffset, e.ViewportWidth); SizeTimeline(); }
     private async Task<bool> CanDiscard()
     {
         if (session.Project == saved) return true;
@@ -302,7 +342,7 @@ public partial class MainWindow : Window
     {
         if (activeJob is not null) throw new InvalidOperationException("処理をキャンセルしてから新規作成してください。");
         if (!await CanDiscard()) return; ClearPlayback(); session.Open(TimingProject.Empty());
-        projectPath = projectHash = null; saved = session.Project; LyricsInput.Clear(); Refresh();
+        projectPath = projectHash = null; saved = session.Project; Refresh();
     });
     private async void Open_Click(object sender, RoutedEventArgs e) => await Guard(async () =>
     {
@@ -312,7 +352,7 @@ public partial class MainWindow : Window
         if (dialog.ShowDialog(this) != true) return;
         var read = await LocalFiles.ReadAsync(dialog.FileName); var project = TimingFormats.LoadProject(read.Bytes);
         ClearPlayback(); session.Open(project); projectPath = dialog.FileName; projectHash = read.Hash; saved = session.Project;
-        LyricsInput.Text = string.Join('\n', session.Project.Lines.Select(l => l.Text)); Refresh();
+        Refresh();
         suppressSource = true; PlaybackSource.SelectedIndex = 0; suppressSource = false;
         if (project.MusicPath is not null && System.IO.File.Exists(project.MusicPath)) await Prepare(project.MusicPath);
         else Status("読み込みました。音源がない場合も歌詞の編集・出力はできます。");
@@ -332,15 +372,41 @@ public partial class MainWindow : Window
     }
     private async void Save_Click(object sender, RoutedEventArgs e) => await Guard(async () => { await Save(false); });
     private async void SaveAs_Click(object sender, RoutedEventArgs e) => await Guard(async () => { await Save(true); });
-    private async void Import_Click(object sender, RoutedEventArgs e) => await Guard(async () =>
+    private void Import_Click(object sender, RoutedEventArgs e) => Sync(() =>
     {
-        var dialog = new OpenFileDialog { Filter = "歌詞ファイル|*.json;*.srt", CheckFileExists = true };
-        if (dialog.ShowDialog(this) != true) return;
-        var bytes = (await LocalFiles.ReadAsync(dialog.FileName)).Bytes;
-        var lines = System.IO.Path.GetExtension(dialog.FileName).Equals(".srt", StringComparison.OrdinalIgnoreCase) ? TimingFormats.ImportSrt(Encoding.UTF8.GetString(bytes)) : TimingFormats.ImportJson(bytes);
-        AbortHold(); session.Execute(p => p with { Lines = lines, OriginalLines = lines });
-        LyricsInput.Text = string.Join('\n', lines.Select(l => l.Text)); Status("読み込みました。元ファイルは変更していません。");
+        AbortHold(); Timeline.CancelGesture();
+        var dialog = new LyricsWindow { Owner = this };
+        if (dialog.ShowDialog() != true || dialog.Result is not { } result) return;
+        if (session.Project.Lines.Length > 0 && MessageBox.Show(this,
+            "現在の歌詞・タイミングを置き換えますか？\n未保存の変更も置き換えます。元に戻すで復元できます。",
+            "歌詞の読み込み", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
+        session.Execute(p => p with { Lines = result.Lines, OriginalLines = result.Lines });
+        selected = result.Lines.FirstOrDefault()?.Id; selectedIds.Clear();
+        if (selected is { } id) selectedIds.Add(id); SelectGrid(); UpdateInspector();
+        Status("歌詞を読み込みました。元ファイルは変更していません。");
     });
+    private HashSet<Guid> EditTargets() => EditScope.SelectedIndex == 1
+        ? session.Project.Lines.Select(l => l.Id).ToHashSet() : selectedIds.ToHashSet();
+    private void ShiftEarlier_Click(object sender, RoutedEventArgs e) => Shift(-1);
+    private void ShiftLater_Click(object sender, RoutedEventArgs e) => Shift(1);
+    private void Shift(int direction) => Sync(() =>
+    {
+        AbortHold(); Timeline.CancelGesture();
+        var delta = checked(TimingEdits.ParseAdjustment(Adjustment.Text) * direction); var targets = EditTargets();
+        session.Execute(p => TimingEdits.Shift(p, targets, delta, FollowPrevious.IsChecked == true));
+        Status($"{(direction < 0 ? "前" : "後ろ")}へ {Math.Abs(LyricTime.Seconds(delta)):0.#######}秒 調整しました。");
+    });
+    private void AlignPrevious_Click(object sender, RoutedEventArgs e) => Sync(() =>
+    {
+        AbortHold(); Timeline.CancelGesture(); var targets = EditTargets();
+        session.Execute(p => TimingEdits.AlignPrevious(p, targets)); Status("前行の終了を対象行の開始にそろえました。");
+    });
+    private void Timeline_SizeChanged(object sender, SizeChangedEventArgs e) => SizeTimeline();
+    private void SizeTimeline()
+    {
+        if (Timeline is not null && TimelineScroll.ViewportHeight > 0 && double.IsFinite(TimelineScroll.ViewportHeight) && Math.Abs(Timeline.Height - TimelineScroll.ViewportHeight) > .5)
+            Timeline.Height = Math.Max(125, TimelineScroll.ViewportHeight);
+    }
     private async Task Export(byte[] content, string filter, string name)
     {
         var dialog = new SaveFileDialog { Filter = filter, FileName = name, OverwritePrompt = true };

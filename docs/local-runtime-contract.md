@@ -56,3 +56,25 @@ automatically replay writes/jobs. Selected paths are never emitted to a remote
 service; process arguments are local to the current OS user. Future remote access
 must implement the scoped grant/reparse/concurrency/reconnect requirements in the
 desktop plan and is not implied by this runtime.
+
+
+## Lyrics entry and batch timing edits
+
+Lyrics entry is a dedicated modal draft window; opening, dropping or canceling
+does not mutate the session. Explicit confirmation replaces lyrics in one undoable
+command after a replacement prompt. TXT uses strict UTF-8 (optional BOM) and
+CRLF/LF/CR line breaks. File selection/drop share a bounded reader (16 MiB),
+4,000,000-character input cap, 20,000-line and 4,096-character-per-line validation.
+Only one selected fully qualified local TXT/JSON/SRT file is accepted; directories,
+links/reparse files, UNC/URL inputs and multi-file drops are rejected. No recursive
+scan or execution occurs. JSON/SRT retains timing until the draft text is edited.
+The application reads only the selected file; it does not create a persistent grant.
+
+Timing adjustments and predecessor alignment are pure snapshot transformations
+validated before one TimingSession publication. An invalid row rejects the whole
+batch. Untimed rows remain untimed; predecessor means the immediately preceding
+document row. All-target alignment computes from one snapshot, independent of
+iteration order. Start-changing gestures may include predecessor-end changes in
+the same expected-revision edit; drag previews are transient and capture loss
+discards them. Positive adjustment input uses integer ticks after decimal conversion;
+unitless values and the 1–20 presets are milliseconds, explicit `s`/`秒` are seconds.

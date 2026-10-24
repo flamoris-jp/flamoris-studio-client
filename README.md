@@ -16,8 +16,8 @@ are implemented in this slice.
 
 | Workspace | Implemented scope |
 | --- | --- |
-| **PONPON** | Open music, paste lyrics and hold/release to record line times. Native Windows controls; no manual song directory or song.json. |
-| **ぐにぐに / いじいじ** | Waveform and energy, drag move/trim, zoom/scroll, selected-line audition, numeric/text inspector, Undo/Redo. Optional aligned Vocal Stem. |
+| **PONPON** | Open music, paste or drop TXT/JSON/SRT in a dedicated lyrics window; S plays and Space holds/releases to record line times. Native Windows controls; no manual song directory or song.json. |
+| **ぐにぐに / いじいじ** | Resizable waveform/table, drag move/trim, multi-row/all-row time adjustment, predecessor-end follow, zoom/scroll, selected-line audition, inspector, Undo/Redo. Optional aligned Vocal Stem. |
 | **みるみる** | Preview the lyric at the playback position. |
 | **Persistence / exchange** | Precise local `.fponproj`, original import snapshot, optimistic atomic save, SRT, legacy PONPON JSON and portable versioned timing JSON. |
 | **AudioAnalyzer** | Independent audio-only worker; waveform, relative RMS dynamics, estimated BPM/beats, key and major/minor-triad chords. Cancel, source fingerprint/stale checks and JSON export. |
