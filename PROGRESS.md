@@ -1,5 +1,43 @@
 # StudioClient delivery evidence
 
+## 2026-10-24: selection crash root cause found from Windows event log (#13)
+
+- The owner supplied .NET Runtime evidence: unhandled ArgumentException for a
+  duplicate ItemInfo key in Selector.InternalSelectedItemsStorage.Add, reached
+  from SelectedItemCollection.ClearItems -> MainWindow.SelectGrid -> timeline click.
+- LyricRow's generated record hash/equality included mutable IsCurrent and
+  PropertyChanged subscribers. Follow/binding changes invalidated keys already
+  stored in WPF selection collections, explaining failures beyond stretching.
+- Replace the row with a reference-identity view class. Highlight notifications
+  remain; text/IDs/timing document and multi-selection behavior are preserved.
+- Before fixing, three CLR regression tests fail (highlight hash stability,
+  subscription hash stability, distinct row instances). After fixing, all 44
+  managed tests pass locally. Windows-targeted WPF Release compilation passes.
+- Windows regression smoke selects 128 rows with repeated text, changes highlight
+  and repeatedly uses the actual SelectGrid clear/reselect path. Before/after CI
+  evidence is recorded on PR #14; physical acceptance remains separate.
+
+
+## 2026-10-24: stretch-crash report hardening and recovery (#13)
+
+- Owner reports unexpected exit while stretching a lyric-box edge. No exception
+  trace from that run is available; the original root cause is not confirmed.
+- Bound pointer deltas before conversion/addition, choose the nearest edge for
+  short boxes, and validate all preview rows before rendering/committing.
+  Invalid previews, capture loss and zoom cancel the gesture without publication.
+- Add per-command atomic recovery checkpoints, inactive-instance detection and
+  explicit startup restoration without overwriting a manual save.
+- Reuse `Flamoris.Logging` 1.0.0 for bounded local diagnostics with only operation
+  codes, exception types/HResults and method frames. Unknown UI exceptions remain
+  fatal rather than being globally swallowed.
+- 41 managed tests pass locally, including new drag-boundary, sub-tick, recovery
+  isolation/validation/reparse and diagnostic privacy checks. WPF Release build
+  passes with zero warnings/errors. Windows synthetic UI adds both-edge resize,
+  undo, invalid-follow rejection, capture loss and invalid-coordinate checks.
+  CI execution evidence is recorded on the implementation PR.
+- Subsequent Windows event-log investigation is recorded above. The original
+  boundary hardening alone was not the selection-hash root-cause fix.
+
 ## 2026-10-24: PONPON retry, annotations and lyric follow (#11)
 
 - Whole annotation-only tag/parenthesis rows are excluded from working lyrics,

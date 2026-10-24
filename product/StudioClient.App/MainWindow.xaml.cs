@@ -16,20 +16,10 @@ using Flamoris.StudioClient.Infrastructure;
 
 namespace Flamoris.StudioClient.App;
 
-public sealed record LyricRow(Guid Id, int Number, string Text, string Start, string End) : INotifyPropertyChanged
-{
-    private bool isCurrent;
-    public bool IsCurrent
-    {
-        get => isCurrent;
-        set { if (isCurrent == value) return; isCurrent = value; PropertyChanged?.Invoke(this, new(nameof(IsCurrent))); }
-    }
-    public event PropertyChangedEventHandler? PropertyChanged;
-}
-
 public partial class MainWindow : Window
 {
     private readonly TimingSession session = new();
+    private readonly RecoveryStore recovery = new(System.IO.Path.Combine(App.StateRoot, "recovery"));
     private readonly AudioWorker worker = new();
     private readonly MediaPlayer player = new();
     private readonly Dictionary<string, AudioJobResult> prepared = new(StringComparer.OrdinalIgnoreCase);
@@ -41,6 +31,7 @@ public partial class MainWindow : Window
     private Task<AudioJobResult>? activeJob;
     private Guid? selected;
     private readonly HashSet<Guid> selectedIds = [];
+    private bool recoveryUnavailable;
     private bool selectingGrid, spaceHeld, recordingNavigation, followQueued;
     private Guid? followedLyric, requestedLyric;
     private (Guid Id, long Start, long Revision)? held;
@@ -56,7 +47,9 @@ public partial class MainWindow : Window
         InitializeComponent();
         AnalysisWave.Fit = true; Timeline.Focusable = true;
         Adjustment.ItemsSource = Enumerable.Range(1, 20).Select(i => $"{i}ms").ToArray(); Adjustment.Text = "10ms";
-        session.Changed += Refresh;
+        session.Changed += () => { UpdateRecovery(); Refresh(); };
+        Timeline.InteractionFailed += error =>
+        { App.Diagnostics.Write(error, "timeline.gesture"); Status("この伸縮は取り消しました。時間範囲と前行の追従設定を確認してください。"); };
         Timeline.SelectLine += id => { selected = id; selectedIds.Clear(); selectedIds.Add(id); SelectGrid(); UpdateInspector(); FollowLyric(selected); };
         Timeline.Seek += ticks => { AbortHold(); player.Position = TimeSpan.FromTicks(Math.Clamp(ticks, 0, LyricTime.FromSeconds((decimal)Duration))); Tick(); };
         Timeline.CommitRange += (id, start, end, revision) => Sync(() => session.Execute(p => TimingEdits.Range(p, id, start, end, FollowPrevious.IsChecked == true), revision));
@@ -72,6 +65,7 @@ public partial class MainWindow : Window
         Loaded += async (_, _) =>
         {
             Timeline.SetViewport(0, TimelineScroll.ViewportWidth);
+            if (!Environment.GetCommandLineArgs().Contains("--smoke")) OfferRecovery();
             if (Environment.GetCommandLineArgs().Contains("--smoke"))
             {
                 await Task.Delay(250); UpdateLayout();
@@ -86,13 +80,46 @@ public partial class MainWindow : Window
         };
         Refresh();
     }
-    private void Status(string text) => StatusText.Text = text;
-    private void Sync(Action action) { try { action(); } catch (Exception e) { Status(e.Message); } }
+    private void UpdateRecovery()
+    {
+        try
+        {
+            if (session.Project == saved || session.Project.Lines.Length == 0) recovery.Clear();
+            else recovery.Checkpoint(session.Project);
+            recoveryUnavailable = false;
+        }
+        catch (Exception error) when (error is System.IO.IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {
+            recoveryUnavailable = true; App.Diagnostics.Write(error, "recovery.checkpoint");
+            Status("復旧用の自動保存ができませんでした。Ctrl+Sで保存してください。");
+        }
+    }
+    private void OfferRecovery() => Sync(() =>
+    {
+        foreach (var candidate in recovery.Candidates())
+        {
+            TimingProject project;
+            try { project = recovery.Read(candidate); }
+            catch (Exception error) when (error is System.IO.IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+            { App.Diagnostics.Write(error, "recovery.read"); continue; }
+            if (MessageBox.Show(this, "前回、保存されずに終了した編集が見つかりました。復元しますか？\n元のプロジェクトファイルは上書きしません。",
+                "PONPONの復旧", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            session.Open(project); projectPath = projectHash = null;
+            // Keep the previous checkpoint until a fresh copy is safely published.
+            try { recovery.Checkpoint(session.Project); recovery.Remove(candidate); }
+            catch (Exception error) when (error is System.IO.IOException or UnauthorizedAccessException)
+            { App.Diagnostics.Write(error, "recovery.transfer"); }
+            Status("前回の編集を復元しました。音源は「音源を開く」か再生ボタンで準備できます。保存先を選んで保存してください。");
+            return;
+        }
+    });
+    private void Status(string text) => StatusText.Text = text + (recoveryUnavailable ? "  【復旧保存なし：Ctrl+Sで保存してください】" : "");
+    private void Sync(Action action) { try { action(); } catch (Exception e) { App.Diagnostics.Write(e, "ui.command"); Status(e.Message); } }
     private async Task Guard(Func<Task> action)
     {
         try { await action(); }
         catch (OperationCanceledException) { Status("処理をキャンセルしました。"); }
-        catch (Exception e) { Status(e.Message); MessageBox.Show(this, e.Message, "StudioClient", MessageBoxButton.OK, MessageBoxImage.Information); }
+        catch (Exception e) { App.Diagnostics.Write(e, "ui.async-command"); Status(e.Message); MessageBox.Show(this, e.Message, "StudioClient", MessageBoxButton.OK, MessageBoxImage.Information); }
     }
     private void Tick()
     {
@@ -425,7 +452,7 @@ public partial class MainWindow : Window
     {
         if (activeJob is not null) throw new InvalidOperationException("処理をキャンセルしてから新規作成してください。");
         if (!await CanDiscard()) return; ClearPlayback(); session.Open(TimingProject.Empty());
-        projectPath = projectHash = null; saved = session.Project; Refresh();
+        projectPath = projectHash = null; saved = session.Project; UpdateRecovery(); Refresh();
     });
     private async void Open_Click(object sender, RoutedEventArgs e) => await Guard(async () =>
     {
@@ -434,7 +461,7 @@ public partial class MainWindow : Window
         var dialog = new OpenFileDialog { Filter = "PONPONプロジェクト|*.fponproj", CheckFileExists = true };
         if (dialog.ShowDialog(this) != true) return;
         var read = await LocalFiles.ReadAsync(dialog.FileName); var project = TimingFormats.LoadProject(read.Bytes);
-        ClearPlayback(); session.Open(project); projectPath = dialog.FileName; projectHash = read.Hash; saved = project;
+        ClearPlayback(); session.Open(project); projectPath = dialog.FileName; projectHash = read.Hash; saved = project; UpdateRecovery();
         Refresh();
         suppressSource = true; PlaybackSource.SelectedIndex = 0; suppressSource = false;
         if (project.MusicPath is not null && System.IO.File.Exists(project.MusicPath)) await Prepare(project.MusicPath);
@@ -451,7 +478,7 @@ public partial class MainWindow : Window
         }
         var snapshot = session.Project;
         var hash = await LocalFiles.PublishAsync(path, TimingFormats.SaveProject(snapshot), expected);
-        projectPath = path; projectHash = hash; saved = snapshot; Refresh(); Status("保存しました。"); return true;
+        projectPath = path; projectHash = hash; saved = snapshot; UpdateRecovery(); Refresh(); Status("保存しました。"); return true;
     }
     private async void Save_Click(object sender, RoutedEventArgs e) => await Guard(async () => { await Save(false); });
     private async void SaveAs_Click(object sender, RoutedEventArgs e) => await Guard(async () => { await Save(true); });
@@ -537,7 +564,9 @@ public partial class MainWindow : Window
             if (!await CanDiscard()) return;
             jobCancellation?.Cancel();
             if (activeJob is { } running) try { await running; } catch (Exception) { }
-            timer.Stop(); ClearPlayback(); worker.Dispose(); closingAllowed = true;
+            timer.Stop(); ClearPlayback(); worker.Dispose();
+            try { recovery.Clear(); } catch (Exception error) when (error is System.IO.IOException or UnauthorizedAccessException) { App.Diagnostics.Write(error, "recovery.clear"); }
+            recovery.Dispose(); closingAllowed = true;
             // Closing may complete synchronously (no dirty document/job). Queue
             // the second Close after the current cancellable Closing event returns.
             _ = Dispatcher.BeginInvoke(new Action(Close));

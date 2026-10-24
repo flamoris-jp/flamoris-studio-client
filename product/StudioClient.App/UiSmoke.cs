@@ -24,6 +24,23 @@ public partial class MainWindow
         KeyEventArgs KeyEvent(Key key, RoutedEvent routed) => new(Keyboard.PrimaryDevice,
             PresentationSource.FromVisual(this)!, Environment.TickCount, key) { RoutedEvent = routed };
         CaptureSmoke(this, "startup.png");
+        session.SetLyrics(string.Join('\n', Enumerable.Range(1, 128).Select(_ => "同じ歌詞")));
+        var selectionRows = (LyricRow[])LyricsGrid.ItemsSource;
+        selectedIds.Clear(); foreach (var row in selectionRows) selectedIds.Add(row.Id);
+        selected = selectionRows[0].Id; SelectGrid();
+        for (var pass = 0; pass < 8; pass++)
+        {
+            // Change selected-row highlight keys before clearing WPF selection.
+            // This is the reported SelectGrid -> SelectedItemCollection.ClearItems path.
+            FollowLyric(selectionRows[pass + 32].Id);
+            selected = selectionRows[pass + 1].Id;
+            selectedIds.Clear(); selectedIds.Add(selected.Value); SelectGrid();
+            Check(LyricsGrid.SelectedItems.Count == 1 && ((LyricRow)LyricsGrid.SelectedItem).Id == selected,
+                "highlight then SelectGrid retains one selected item, pass " + pass);
+            selectedIds.Clear(); foreach (var row in selectionRows) selectedIds.Add(row.Id); SelectGrid();
+        }
+        Check(LyricsGrid.SelectedItems.Count == 128, "duplicate lyric text keeps independent selectable rows");
+
         session.SetLyrics("現在の歌詞 — 宇宙へ進もう\nNEXTも同じ大きさで読む\nその次の歌詞\n最後の歌詞");
         var ids = session.Project.Lines.Select(l => l.Id).ToArray();
         session.SetRange(ids[0], 10_000_000, 20_000_000);
@@ -124,6 +141,36 @@ public partial class MainWindow
         Check(CurrentLyric.Text == "歌詞 31", "preview displays the playback current lyric");
         CaptureSmoke(this, "pon-follow.png");
         PreviewLyrics.IsChecked = false; playingPath = null;
+        session.SetLyrics("伸縮する歌詞\n次の歌詞");
+        var dragId = session.Project.Lines[0].Id; var nextDragId = session.Project.Lines[1].Id;
+        session.SetRange(dragId, 10_000_000, 20_000_000); session.SetRange(nextDragId, 30_000_000, 40_000_000);
+        FollowPrevious.IsChecked = false; UpdateLayout();
+        var beforeDrag = session.Project;
+        var leftPoint = new Point(Timeline.TimeToPixels(10_000_000), Timeline.LineCenterY(0));
+        Check(Timeline.BeginDrag(leftPoint) && Timeline.IsDragging, "left-edge drag captures pointer");
+        Timeline.UpdateDrag(new Point(leftPoint.X + 20, leftPoint.Y));
+        Check(session.Project == beforeDrag, "resize preview does not mutate canonical project");
+        Timeline.CompleteDrag();
+        Check(session.Project.Lines[0].StartTicks == 12_500_000 && !Timeline.IsDragging,
+            "left-edge resize commits one validated range");
+        Undo_Click(this, new RoutedEventArgs()); Check(session.Project == beforeDrag, "one Undo restores complete resize");
+        var rightPoint = new Point(Timeline.TimeToPixels(20_000_000), Timeline.LineCenterY(0));
+        Timeline.BeginDrag(rightPoint); Timeline.UpdateDrag(new Point(rightPoint.X + 40, rightPoint.Y)); Timeline.CompleteDrag();
+        Check(session.Project.Lines[0].EndTicks == 25_000_000, "right-edge resize commits valid end");
+        Undo_Click(this, new RoutedEventArgs());
+        FollowPrevious.IsChecked = true;
+        var nextLeft = new Point(Timeline.TimeToPixels(30_000_000), Timeline.LineCenterY(1));
+        Timeline.BeginDrag(nextLeft); Timeline.UpdateDrag(new Point(nextLeft.X - 200, nextLeft.Y)); Timeline.CompleteDrag();
+        Check(session.Project == beforeDrag && !Timeline.IsDragging, "invalid predecessor follow cancels full gesture without commit");
+        FollowPrevious.IsChecked = false;
+        Timeline.BeginDrag(rightPoint); Timeline.UpdateDrag(new Point(rightPoint.X + 40, rightPoint.Y)); Timeline.ReleaseMouseCapture(); Timeline.CompleteDrag();
+        Check(session.Project == beforeDrag && !Timeline.IsDragging, "capture loss discards resize preview");
+        Timeline.BeginDrag(rightPoint); Timeline.UpdateDrag(new Point(double.NaN, rightPoint.Y)); Timeline.CompleteDrag();
+        Check(session.Project == beforeDrag && !Timeline.IsDragging, "nonfinite pointer cancels without rendering an invalid draft");
+        var checkpoint = Flamoris.StudioClient.Core.TimingFormats.LoadProject(File.ReadAllBytes(recovery.CheckpointPath));
+        Check(checkpoint.Id == session.Project.Id && checkpoint.Lines.SequenceEqual(session.Project.Lines),
+            "last completed edit is checkpointed independently of manual save");
+        CaptureSmoke(this, "timing-drag.png");
         saved = session.Project; // synthetic document must not prompt during normal close.
         await File.WriteAllTextAsync(Path.Combine(AppContext.BaseDirectory, "ui-smoke.json"), System.Text.Json.JsonSerializer.Serialize(checks));
     }

@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Globalization;
+using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -15,7 +16,7 @@ public sealed class TimingSurface : FrameworkElement
     private double[] beats = [];
     private double duration = 10, scale = 80, offset, viewport = 1200;
     private long revision;
-    private (LyricLine Line, double X, string Kind, long Revision)? drag;
+    private (LyricLine Line, double X, TimingDragKind Kind, long Revision, double Scale)? drag;
     private (long Start, long End)? draft;
     private ImmutableArray<LyricLine>? draftLines;
     public Func<Guid, long, long, ImmutableArray<LyricLine>>? PreviewEdit { get; set; }
@@ -28,6 +29,9 @@ public sealed class TimingSurface : FrameworkElement
     public event Action<long>? Seek;
     public event Action<Guid, long, long, long>? CommitRange;
     public bool Fit { get; set; }
+    public event Action<Exception>? InteractionFailed;
+    internal bool IsDragging => drag.HasValue;
+    internal double LineCenterY(int index) => LaneTop + index % 3 * (LaneHeight + 3) + LaneHeight / 2;
     public void SetData(ImmutableArray<LyricLine> lyrics, AudioFeatures? audio, double seconds, long currentRevision)
     {
         if (revision != currentRevision) CancelGesture();
@@ -35,8 +39,13 @@ public sealed class TimingSurface : FrameworkElement
         duration = Math.Max(1, seconds); revision = currentRevision;
         InvalidateMeasure(); InvalidateVisual();
     }
-    public void SetViewport(double start, double width) { offset = start; viewport = width > 0 ? width : 1200; InvalidateVisual(); }
-    public void Zoom(double factor) { scale = Math.Clamp(scale * factor, 10, 500); InvalidateMeasure(); InvalidateVisual(); }
+    public void SetViewport(double start, double width)
+    { offset = double.IsFinite(start) ? Math.Max(0, start) : 0; viewport = double.IsFinite(width) && width > 0 ? width : 1200; InvalidateVisual(); }
+    public void Zoom(double factor)
+    {
+        if (!double.IsFinite(factor) || factor <= 0) return;
+        CancelGesture(); scale = Math.Clamp(scale * factor, 10, 500); InvalidateMeasure(); InvalidateVisual();
+    }
     private double Scale => Fit ? Math.Max(1, ActualWidth) / duration : scale;
     public double TimeToPixels(long ticks) => (double)LyricTime.Seconds(ticks) * Scale;
     protected override Size MeasureOverride(Size availableSize) => new(Fit ? (double.IsFinite(availableSize.Width) ? availableSize.Width : 1000) : Math.Max(1000, duration * scale + 40), Height);
@@ -87,36 +96,71 @@ public sealed class TimingSurface : FrameworkElement
         => dc.DrawText(new FormattedText(value, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, new Typeface("Yu Gothic UI"), size, brush, VisualTreeHelper.GetDpi(this).PixelsPerDip), new Point(x, y));
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
     {
-        Focus();
-        var p = e.GetPosition(this);
+        Input(() =>
+        {
+            Focus(); var point = e.GetPosition(this);
+            if (!BeginDrag(point)) Seek?.Invoke(Math.Clamp(LyricTime.FromSeconds((decimal)(point.X / Scale)), 0, TimeSpan.FromHours(24).Ticks));
+        });
+        e.Handled = true;
+    }
+    internal bool BeginDrag(Point point)
+    {
+        CancelGesture();
+        if (!double.IsFinite(point.X) || !double.IsFinite(point.Y)) return false;
         for (var i = lines.Length - 1; i >= 0; i--)
         {
-            var l = lines[i]; if (!l.IsTimed || p.Y < LaneTop + i % 3 * (LaneHeight + 3) || p.Y > LaneTop + i % 3 * (LaneHeight + 3) + LaneHeight) continue;
-            var left = (double)LyricTime.Seconds(l.StartTicks!.Value) * Scale; var right = (double)LyricTime.Seconds(l.EndTicks!.Value) * Scale;
-            if (p.X < left - 3 || p.X > right + 3) continue;
-            Selected = l.Id; SelectLine?.Invoke(l.Id);
-            drag = (l, p.X, Math.Abs(p.X - left) < 6 ? "left" : Math.Abs(p.X - right) < 6 ? "right" : "move", revision);
-            draft = (l.StartTicks.Value, l.EndTicks.Value); CaptureMouse(); InvalidateVisual(); e.Handled = true; return;
+            var line = lines[i];
+            if (!line.IsTimed || Math.Abs(point.Y - LineCenterY(i)) > LaneHeight / 2) continue;
+            var left = TimeToPixels(line.StartTicks!.Value); var right = TimeToPixels(line.EndTicks!.Value);
+            if (point.X < left - 3 || point.X > right + 3) continue;
+            // For very short boxes, choose the nearest end rather than always the left.
+            var leftDistance = Math.Abs(point.X - left); var rightDistance = Math.Abs(point.X - right);
+            var kind = Math.Min(leftDistance, rightDistance) < 6
+                ? leftDistance <= rightDistance ? TimingDragKind.Start : TimingDragKind.End : TimingDragKind.Move;
+            var initialRevision = revision;
+            Selected = line.Id; SelectLine?.Invoke(line.Id);
+            if (revision != initialRevision) return true;
+            drag = (line, point.X, kind, initialRevision, Scale);
+            draft = (line.StartTicks.Value, line.EndTicks.Value);
+            if (!CaptureMouse()) { CancelGesture(); return true; }
+            InvalidateVisual(); return true;
         }
-        Seek?.Invoke(Math.Max(0, LyricTime.FromSeconds((decimal)(p.X / Scale)))); e.Handled = true;
+        return false;
     }
-    protected override void OnMouseMove(MouseEventArgs e)
+    protected override void OnMouseMove(MouseEventArgs e) => Input(() => UpdateDrag(e.GetPosition(this)));
+    internal void UpdateDrag(Point point)
     {
-        if (drag is not { } d) return;
-        var delta = LyricTime.FromSeconds((decimal)((e.GetPosition(this).X - d.X) / Scale));
-        var start = d.Line.StartTicks!.Value; var end = d.Line.EndTicks!.Value;
-        if (d.Kind == "move") { delta = Math.Max(delta, -start); start += delta; end += delta; }
-        else if (d.Kind == "left") start = Math.Clamp(start + delta, 0, end - 1);
-        else end = Math.Clamp(end + delta, start + 1, TimeSpan.FromHours(24).Ticks);
-        draft = (start, end);
-        try { draftLines = PreviewEdit?.Invoke(d.Line.Id, start, end); }
-        catch (Exception) { draftLines = null; }
-        InvalidateVisual();
+        if (drag is not { } gesture) return;
+        try
+        {
+            var range = TimingDrag.Range(gesture.Line, gesture.Kind, (point.X - gesture.X) / gesture.Scale);
+            // Publish a preview only after validating the entire candidate, including
+            // predecessor-end follow. Invalid candidates cannot reach render or commit.
+            var preview = PreviewEdit is { } edit ? edit(gesture.Line.Id, range.Start, range.End)
+                : lines.SetItem(lines.IndexOf(gesture.Line), gesture.Line with { StartTicks = range.Start, EndTicks = range.End });
+            TimingProject.ValidateLines(preview);
+            draft = range; draftLines = preview; InvalidateVisual();
+        }
+        catch (Exception error) when (error is InvalidDataException or InvalidOperationException or ArgumentException or OverflowException)
+        {
+            // A rejected gesture is canceled in full; releasing cannot commit its old draft.
+            CancelGesture(); InteractionFailed?.Invoke(error);
+        }
     }
-    protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
+    protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e) { Input(CompleteDrag); e.Handled = true; }
+    internal void CompleteDrag()
     {
-        var d = drag; var final = draft; drag = null; draft = null; draftLines = null; ReleaseMouseCapture(); InvalidateVisual();
-        if (d.HasValue && final.HasValue) CommitRange?.Invoke(d.Value.Line.Id, final.Value.Start, final.Value.End, d.Value.Revision);
+        var gesture = drag; var final = draft;
+        CancelGesture();
+        if (gesture.HasValue && final.HasValue &&
+            (gesture.Value.Line.StartTicks != final.Value.Start || gesture.Value.Line.EndTicks != final.Value.End))
+            CommitRange?.Invoke(gesture.Value.Line.Id, final.Value.Start, final.Value.End, gesture.Value.Revision);
+    }
+    private void Input(Action action)
+    {
+        try { action(); }
+        catch (Exception error) when (error is InvalidDataException or InvalidOperationException or ArgumentException or OverflowException)
+        { CancelGesture(); InteractionFailed?.Invoke(error); }
     }
     public void CancelGesture() { drag = null; draft = null; draftLines = null; ReleaseMouseCapture(); InvalidateVisual(); }
     protected override void OnLostMouseCapture(MouseEventArgs e) { drag = null; draft = null; draftLines = null; InvalidateVisual(); base.OnLostMouseCapture(e); }
