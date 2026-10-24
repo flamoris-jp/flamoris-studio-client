@@ -88,6 +88,42 @@ public partial class MainWindow
             finally { File.Delete(path); }
         }
         finally { dialog.Close(); }
+        // PON-specific undo must not undo typing/imports or other document edits.
+        session.SetLyrics("[verse1]\n(whisper)\n" + string.Join('\n', Enumerable.Range(1, 80).Select(i => $"歌詞 {i}")));
+        Check(session.Project.Lines.Length == 80 && LyricsGrid.Items.Count == 80 && session.Project.OriginalLines.Length == 82,
+            "annotations are absent from PON rows but remain in original snapshot");
+        var recordingId = session.Project.Lines[30].Id;
+        selected = recordingId; selectedIds.Clear(); selectedIds.Add(recordingId); SelectGrid(); UpdateInspector();
+        var beforePon = session.Project;
+        held = (recordingId, 10_000_000, session.Revision); ReleaseHold(20_000_000);
+        Check(session.CanUndoPon && UndoPonButton.IsEnabled && selected == session.Project.Lines[31].Id,
+            "completed PON enables back button and advances current row");
+        SelectedText.Focus();
+        var textZ = KeyEvent(Key.Z, Keyboard.PreviewKeyDownEvent); Key_Down(this, textZ);
+        Check(!textZ.Handled && session.CanUndoPon, "Z remains text input in inspector");
+        Timeline.Focus(); var undoZ = KeyEvent(Key.Z, Keyboard.PreviewKeyDownEvent); Key_Down(this, undoZ);
+        Check(undoZ.Handled && session.Project == beforePon && selected == recordingId && !playing && !session.CanUndoPon,
+            "Z restores last PON and reselects its line while pausing transport");
+        Key_Down(this, KeyEvent(Key.Z, Keyboard.PreviewKeyDownEvent));
+        Check(session.Project == beforePon, "Z stops at non-PON import history");
+        session.RecordPon(recordingId, 0, 20_000_000, false, session.Revision);
+        var beforeReset = session.Project; ResetTimings();
+        Check(session.Project.Lines.All(l => !l.IsTimed) && selected == session.Project.Lines[0].Id && !playing,
+            "reset clears times and selects first row without removing lyrics");
+        Undo_Click(this, new RoutedEventArgs()); Check(session.Project == beforeReset, "Ctrl+Z history restores full timing reset");
+        // Exercise the real timer path; no audio device or production media is used.
+        playingPath = "synthetic-smoke"; PreviewLyrics.IsChecked = true; Tick();
+        await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.ApplicationIdle); UpdateLayout();
+        var lyricScroll = FindVisualChild<ScrollViewer>(LyricsGrid)!;
+        Check(Math.Abs(lyricScroll.VerticalOffset - 29) < .5 && ((LyricRow[])LyricsGrid.ItemsSource)[30].IsCurrent,
+            "playback timer follows current lyric with one preceding row");
+        var currentRow = LyricsGrid.ItemContainerGenerator.ContainerFromIndex(30) as DataGridRow;
+        var previousRow = LyricsGrid.ItemContainerGenerator.ContainerFromIndex(29) as DataGridRow;
+        Check(currentRow is not null && previousRow is not null && Math.Abs(currentRow.TranslatePoint(new Point(), previousRow).Y - LyricsGrid.RowHeight) < 1,
+            "virtualized current row is visible directly below preceding row");
+        Check(CurrentLyric.Text == "歌詞 31", "preview displays the playback current lyric");
+        CaptureSmoke(this, "pon-follow.png");
+        PreviewLyrics.IsChecked = false; playingPath = null;
         saved = session.Project; // synthetic document must not prompt during normal close.
         await File.WriteAllTextAsync(Path.Combine(AppContext.BaseDirectory, "ui-smoke.json"), System.Text.Json.JsonSerializer.Serialize(checks));
     }

@@ -16,7 +16,16 @@ using Flamoris.StudioClient.Infrastructure;
 
 namespace Flamoris.StudioClient.App;
 
-public sealed record LyricRow(Guid Id, int Number, string Text, string Start, string End);
+public sealed record LyricRow(Guid Id, int Number, string Text, string Start, string End) : INotifyPropertyChanged
+{
+    private bool isCurrent;
+    public bool IsCurrent
+    {
+        get => isCurrent;
+        set { if (isCurrent == value) return; isCurrent = value; PropertyChanged?.Invoke(this, new(nameof(IsCurrent))); }
+    }
+    public event PropertyChangedEventHandler? PropertyChanged;
+}
 
 public partial class MainWindow : Window
 {
@@ -32,7 +41,8 @@ public partial class MainWindow : Window
     private Task<AudioJobResult>? activeJob;
     private Guid? selected;
     private readonly HashSet<Guid> selectedIds = [];
-    private bool selectingGrid, spaceHeld;
+    private bool selectingGrid, spaceHeld, recordingNavigation, followQueued;
+    private Guid? followedLyric, requestedLyric;
     private (Guid Id, long Start, long Revision)? held;
     private bool playing, mediaReady, suppressSource, closingAllowed, analysisStale, playAfterOpen;
     private int timerCount;
@@ -47,7 +57,7 @@ public partial class MainWindow : Window
         AnalysisWave.Fit = true; Timeline.Focusable = true;
         Adjustment.ItemsSource = Enumerable.Range(1, 20).Select(i => $"{i}ms").ToArray(); Adjustment.Text = "10ms";
         session.Changed += Refresh;
-        Timeline.SelectLine += id => { selected = id; selectedIds.Clear(); selectedIds.Add(id); SelectGrid(); UpdateInspector(); };
+        Timeline.SelectLine += id => { selected = id; selectedIds.Clear(); selectedIds.Add(id); SelectGrid(); UpdateInspector(); FollowLyric(selected); };
         Timeline.Seek += ticks => { AbortHold(); player.Position = TimeSpan.FromTicks(Math.Clamp(ticks, 0, LyricTime.FromSeconds((decimal)Duration))); Tick(); };
         Timeline.CommitRange += (id, start, end, revision) => Sync(() => session.Execute(p => TimingEdits.Range(p, id, start, end, FollowPrevious.IsChecked == true), revision));
         Timeline.PreviewEdit = (id, start, end) => TimingEdits.Range(session.Project, id, start, end, FollowPrevious.IsChecked == true).Lines;
@@ -97,12 +107,20 @@ public partial class MainWindow : Window
                 // Follow is presentation only; never advance the media clock here.
                 TimelineScroll.ScrollToHorizontalOffset(Math.Max(0, x - TimelineScroll.ViewportWidth * .3));
             }
+            var current = session.Project.Lines.FirstOrDefault(l => l.IsTimed && l.StartTicks <= position && position < l.EndTicks);
             if (PreviewLyrics.IsChecked == true && held is null)
             {
-                var current = session.Project.Lines.FirstOrDefault(l => l.IsTimed && l.StartTicks <= position && position < l.EndTicks);
                 CurrentLyric.Text = current?.Text ?? "";
                 var index = current is null ? -1 : session.Project.Lines.IndexOf(current);
                 NextLyric.Text = index >= 0 && index + 1 < session.Project.Lines.Length ? session.Project.Lines[index + 1].Text : "";
+            }
+            if (held is null && (PreviewLyrics.IsChecked == true || playing && !recordingNavigation))
+            {
+                // Keep the preceding current line through a gap; before the first
+                // recorded line, show the top. Do not change the edit selection.
+                var anchor = current ?? session.Project.Lines.LastOrDefault(l => l.IsTimed && l.StartTicks <= position)
+                    ?? session.Project.Lines.FirstOrDefault();
+                FollowLyric(anchor?.Id);
             }
         }
         if (++timerCount % 30 == 0 && analysis is not null && analysisPath is not null && !MetadataMatches(analysisPath, analysis.Features.Source))
@@ -131,7 +149,38 @@ public partial class MainWindow : Window
         selectedIds.RemoveWhere(id => !session.Project.Lines.Any(l => l.Id == id));
         if (selectedIds.Count == 0 && selected is { } currentId) selectedIds.Add(currentId);
         selectingGrid = false;
-        SelectGrid(); UpdateInspector(); RefreshTimeline();
+        followedLyric = null;
+        SelectGrid(); UpdateInspector(); RefreshTimeline(); FollowLyric(selected);
+        UndoPonButton.IsEnabled = session.CanUndoPon;
+        ClearTimingsButton.IsEnabled = session.Project.Lines.Any(l => l.IsTimed);
+    }
+    private void FollowLyric(Guid? id)
+    {
+        if (id is null || LyricsGrid.ItemsSource is not LyricRow[] rows) return;
+        if (followedLyric == id) return;
+        foreach (var row in rows) row.IsCurrent = row.Id == id;
+        followedLyric = requestedLyric = id;
+        if (followQueued) return;
+        followQueued = true;
+        _ = Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+        {
+            followQueued = false;
+            if (LyricsGrid.ItemsSource is not LyricRow[] latest) return;
+            var index = Array.FindIndex(latest, r => r.Id == requestedLyric);
+            // Item scrolling + fixed row height makes one preceding row visible.
+            if (index >= 0 && FindVisualChild<ScrollViewer>(LyricsGrid) is { } scroll)
+                scroll.ScrollToVerticalOffset(Math.Max(0, index - 1));
+        }));
+    }
+    private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T match) return match;
+            if (FindVisualChild<T>(child) is { } nested) return nested;
+        }
+        return null;
     }
     private void RefreshTimeline()
     {
@@ -237,21 +286,21 @@ public partial class MainWindow : Window
     {
         if (!mediaReady) { Status("先に音源を開いてください。"); return; }
         if (playing) { AbortHold(); player.Pause(); playing = false; }
-        else { player.Play(); playing = true; }
+        else { recordingNavigation = false; player.Play(); playing = true; }
     }
     private void PlaySelected_Click(object sender, RoutedEventArgs e) => PlaySelected();
     private void PlaySelected()
     {
         var line = session.Project.Lines.FirstOrDefault(l => l.Id == selected);
         if (!mediaReady || line?.StartTicks is not { } ticks) { Status("時間のある歌詞と音源を選んでね。"); return; }
-        AbortHold(); player.Position = TimeSpan.FromTicks(ticks); player.Play(); playing = true;
+        AbortHold(); recordingNavigation = false; player.Position = TimeSpan.FromTicks(ticks); player.Play(); playing = true; Tick();
     }
-    private void Start_Click(object sender, RoutedEventArgs e) { AbortHold(); player.Position = TimeSpan.Zero; Tick(); }
+    private void Start_Click(object sender, RoutedEventArgs e) { AbortHold(); recordingNavigation = false; player.Position = TimeSpan.Zero; FollowLyric(session.Project.Lines.FirstOrDefault()?.Id); Tick(); }
     private void Preview_Unchecked(object sender, RoutedEventArgs e) { if (IsLoaded) UpdateInspector(); }
     private void BeginHold()
     {
         if (held.HasValue || !mediaReady || selected is null) return;
-        PreviewLyrics.IsChecked = false; UpdateInspector();
+        recordingNavigation = true; PreviewLyrics.IsChecked = false; UpdateInspector(); FollowLyric(selected);
         if (!playing) { player.Play(); playing = true; }
         held = (selected.Value, Position, session.Revision); PonButton.Tag = "Held"; Status("記録中 — 離すと次の行へ");
     }
@@ -263,11 +312,11 @@ public partial class MainWindow : Window
         if (stop <= hold.Start) { Status("時間が進みませんでした。再生してから録り直してください。"); return; }
         Sync(() =>
         {
-            session.Execute(p => TimingEdits.Range(p, hold.Id, hold.Start, stop, FollowPrevious.IsChecked == true), hold.Revision);
+            session.RecordPon(hold.Id, hold.Start, stop, FollowPrevious.IsChecked == true, hold.Revision);
             var lines = session.Project.Lines; var index = lines.IndexOf(lines.First(l => l.Id == hold.Id));
             selected = index + 1 < lines.Length ? lines[index + 1].Id : hold.Id;
             selectedIds.Clear(); selectedIds.Add(selected.Value);
-            SelectGrid(); UpdateInspector(); LyricsGrid.ScrollIntoView(LyricsGrid.SelectedItem);
+            SelectGrid(); UpdateInspector(); FollowLyric(selected);
             Status("記録しました。箱を動かして微調整できます。");
         });
     }
@@ -293,6 +342,7 @@ public partial class MainWindow : Window
         }
         if (WorkspaceTabs.SelectedIndex != 0 || Keyboard.Modifiers != ModifierKeys.None || IsTextEntry(Keyboard.FocusedElement)) return;
         if (e.Key == Key.Escape) { AbortHold(); Timeline.CancelGesture(); e.Handled = true; }
+        if (e.Key == Key.Z) { e.Handled = true; if (!e.IsRepeat) UndoPon(); }
         if (e.Key == Key.S) { e.Handled = true; if (!e.IsRepeat) TogglePlay(); }
         if (e.Key == Key.Space)
         {
@@ -317,7 +367,7 @@ public partial class MainWindow : Window
         AbortHold();
         selectedIds.Clear(); foreach (var row in LyricsGrid.SelectedItems.OfType<LyricRow>()) selectedIds.Add(row.Id);
         selected = e.AddedItems.OfType<LyricRow>().LastOrDefault()?.Id ?? LyricsGrid.SelectedItems.OfType<LyricRow>().FirstOrDefault()?.Id;
-        UpdateInspector(); Timeline.Selected = selected; Timeline.SelectedIds = selectedIds.ToHashSet(); Timeline.InvalidateVisual();
+        UpdateInspector(); FollowLyric(selected); Timeline.Selected = selected; Timeline.SelectedIds = selectedIds.ToHashSet(); Timeline.InvalidateVisual();
     }
     private void Line_DoubleClick(object sender, MouseButtonEventArgs e) => PlaySelected();
     private void ApplyLine_Click(object sender, RoutedEventArgs e) => Sync(() =>
@@ -329,10 +379,38 @@ public partial class MainWindow : Window
         var text = SelectedText.Text;
         session.Execute(p => TimingEdits.Range(p, id, start, end, FollowPrevious.IsChecked == true, text));
     });
+    private void UndoPon_Click(object sender, RoutedEventArgs e) => UndoPon();
+    private void UndoPon() => Sync(() =>
+    {
+        AbortHold(); Timeline.CancelGesture();
+        if (session.UndoPon() is not { } recording) { Status("直前に取り消せるPONがありません。"); return; }
+        player.Pause(); playing = false; recordingNavigation = true; PreviewLyrics.IsChecked = false;
+        player.Position = TimeSpan.FromTicks(recording.StartTicks);
+        selected = recording.LineId; selectedIds.Clear(); selectedIds.Add(recording.LineId);
+        SelectGrid(); UpdateInspector(); FollowLyric(selected); Tick();
+        Status("直前のPONを取り消しました。Sで再生して録り直せます。");
+    });
+    private void ClearTimings_Click(object sender, RoutedEventArgs e)
+    {
+        if (!session.Project.Lines.Any(l => l.IsTimed)) { Status("記録済みの時間はありません。"); return; }
+        AbortHold(); Timeline.CancelGesture(); player.Pause(); playing = false;
+        if (MessageBox.Show(this, "全行のタイミングをクリアして、先頭からやり直しますか？\n歌詞と音源は残ります。Ctrl+Zで元に戻せます。",
+            "タイミングを全クリア", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
+        ResetTimings();
+    }
+    private void ResetTimings() => Sync(() =>
+    {
+        AbortHold(); Timeline.CancelGesture(); player.Pause(); playing = false; recordingNavigation = true;
+        session.Execute(TimingEdits.ClearTimings); player.Position = TimeSpan.Zero;
+        selected = session.Project.Lines.FirstOrDefault()?.Id; selectedIds.Clear();
+        if (selected is { } id) selectedIds.Add(id);
+        PreviewLyrics.IsChecked = false; SelectGrid(); UpdateInspector(); FollowLyric(selected); Tick();
+        Status("全行のタイミングをクリアしました。先頭からPONできます。");
+    });
     private void Undo_Click(object sender, RoutedEventArgs e) { AbortHold(); session.Undo(); }
     private void Redo_Click(object sender, RoutedEventArgs e) { AbortHold(); session.Redo(); }
     private void ClearLine_Click(object sender, RoutedEventArgs e) => Sync(() => { AbortHold(); session.Execute(p => p with { Lines = p.Lines.Select(l => l.Id == selected ? l with { StartTicks = null, EndTicks = null } : l).ToImmutableArray() }); });
-    private void Restore_Click(object sender, RoutedEventArgs e) => Sync(() => { AbortHold(); session.Execute(p => p with { Lines = p.OriginalLines }); });
+    private void Restore_Click(object sender, RoutedEventArgs e) => Sync(() => { AbortHold(); session.Execute(p => p with { Lines = LyricText.ForTiming(p.OriginalLines) }); });
     private void ZoomIn_Click(object sender, RoutedEventArgs e) => Timeline.Zoom(1.5);
     private void ZoomOut_Click(object sender, RoutedEventArgs e) => Timeline.Zoom(1 / 1.5);
     private void Timeline_Scroll(object sender, ScrollChangedEventArgs e)
@@ -356,7 +434,7 @@ public partial class MainWindow : Window
         var dialog = new OpenFileDialog { Filter = "PONPONプロジェクト|*.fponproj", CheckFileExists = true };
         if (dialog.ShowDialog(this) != true) return;
         var read = await LocalFiles.ReadAsync(dialog.FileName); var project = TimingFormats.LoadProject(read.Bytes);
-        ClearPlayback(); session.Open(project); projectPath = dialog.FileName; projectHash = read.Hash; saved = session.Project;
+        ClearPlayback(); session.Open(project); projectPath = dialog.FileName; projectHash = read.Hash; saved = project;
         Refresh();
         suppressSource = true; PlaybackSource.SelectedIndex = 0; suppressSource = false;
         if (project.MusicPath is not null && System.IO.File.Exists(project.MusicPath)) await Prepare(project.MusicPath);
@@ -385,9 +463,11 @@ public partial class MainWindow : Window
         if (session.Project.Lines.Length > 0 && MessageBox.Show(this,
             "現在の歌詞・タイミングを置き換えますか？\n未保存の変更も置き換えます。元に戻すで復元できます。",
             "歌詞の読み込み", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
-        session.Execute(p => p with { Lines = result.Lines, OriginalLines = result.Lines });
-        selected = result.Lines.FirstOrDefault()?.Id; selectedIds.Clear();
-        if (selected is { } id) selectedIds.Add(id); SelectGrid(); UpdateInspector();
+        var timingLines = LyricText.ForTiming(result.Lines);
+        if (timingLines.Length == 0) throw new InvalidOperationException("タグ・括弧だけの行を除いた歌詞を1行以上入力してください。");
+        session.Execute(p => p with { Lines = timingLines, OriginalLines = result.Lines });
+        selected = timingLines.FirstOrDefault()?.Id; selectedIds.Clear();
+        if (selected is { } id) selectedIds.Add(id); SelectGrid(); UpdateInspector(); FollowLyric(selected);
         Status("歌詞を読み込みました。元ファイルは変更していません。");
     });
     private HashSet<Guid> EditTargets() => EditScope.SelectedIndex == 1

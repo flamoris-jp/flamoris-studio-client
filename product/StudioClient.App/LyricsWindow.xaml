@@ -3,7 +3,7 @@
   <Grid Margin="18"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <TextBlock Text="歌詞" FontSize="25" FontWeight="SemiBold"/>
     <DockPanel Grid.Row="1" Margin="0,8"><Button DockPanel.Dock="Right" Content="歌詞ファイルを開く…" Click="Open_Click"/>
-      <TextBlock Text="1行ずつ貼り付け／TXT・JSON・SRTをドロップ" TextWrapping="Wrap" VerticalAlignment="Center"/></DockPanel>
+      <TextBlock Text="1行ずつ貼り付け／TXT・JSON・SRTをドロップ。タグ・括弧だけの行は表示しません。" TextWrapping="Wrap" VerticalAlignment="Center"/></DockPanel>
     <Border Grid.Row="2" x:Name="DropBorder" BorderBrush="#7DA69D" BorderThickness="2" Background="White" CornerRadius="4" AllowDrop="True"
             PreviewDragOver="DragOver_Lyrics" PreviewDragLeave="DragLeave_Lyrics" PreviewDrop="Drop_Lyrics">
       <Grid><TextBox x:Name="LyricsInput" MaxLength="4000000" AcceptsReturn="True" AcceptsTab="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" TextChanged="Input_Changed" Background="Transparent" BorderThickness="0"/>

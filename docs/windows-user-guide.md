@@ -58,6 +58,34 @@ stored beside a previous executable.
 8. Save `.fponproj` and export SRT, portable timing JSON or legacy PONPON JSON from
    the File menu. No analysis is required. The original imported file is preserved.
 
+### Tag lines, automatic scrolling and restarting
+
+Whole lines consisting only of `[verse1]`, `[Chorus]`, `(whisper)`, `（間奏）`
+or similar complete bracket groups are excluded from PONPON, its timeline and
+exports. Inline parentheses such as `歌詞（echo）` remain lyrics. This applies to
+paste/TXT/JSON/SRT and reopening older projects. The original import snapshot
+(including annotations and original timing) stays in `.fponproj`; source files
+are never rewritten. Restoring the import also applies the same filter.
+
+The lyric table follows the selected line during recording and the playback line
+during audition/みるみる, aiming to put it on the second visible row. At the start
+or end the scrollbar clamps naturally. Current rows are highlighted; playback
+follow does not replace an edit selection or change the audio clock. A manual
+scroll remains until the current line changes.
+
+**↶ 戻る (Z)** cancels the most recent completed PON, selects that line, seeks to
+its recorded start and pauses. Press S to play and record it again. Repeated Z
+walks back consecutive PONs, including the final row; an overwritten range and
+any predecessor-end follow are restored together. It stops at a non-PON edit;
+use normal **Ctrl+Z / Ctrl+Y** for general history. Z does not intercept typing
+in inputs, repeat key events or other workspaces. History is session-local.
+
+**全クリア…** (also **編集 → タイミングを全クリア…**) asks for confirmation, clears
+only the timing, pauses at zero and selects the first lyric. Lyrics, IDs, music,
+stem and the original snapshot remain. One Ctrl+Z restores the entire timing
+reset. This differs from **読み込み時の歌詞に戻す**, which restores imported text
+and imported timing.
+
 ### Batch adjustment and 「ついてく」
 
 Use Ctrl/Shift in the lyric table to select multiple lines; clicking a timeline

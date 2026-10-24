@@ -16,7 +16,7 @@ are implemented in this slice.
 
 | Workspace | Implemented scope |
 | --- | --- |
-| **PONPON** | Open music, paste or drop TXT/JSON/SRT in a dedicated lyrics window; S plays and Space holds/releases to record line times. Native Windows controls; no manual song directory or song.json. |
+| **PONPON** | Open music, paste or drop TXT/JSON/SRT in a dedicated lyrics window; S plays and Space holds/releases to record line times. Skips annotation-only lines, follows lyrics, Z retries the last PON, and full timing reset keeps lyrics/audio. Native Windows controls; no manual song directory or song.json. |
 | **ぐにぐに / いじいじ** | Resizable waveform/table, drag move/trim, multi-row/all-row time adjustment, predecessor-end follow, zoom/scroll, selected-line audition, inspector, Undo/Redo. Optional aligned Vocal Stem. |
 | **みるみる** | Preview the lyric at the playback position. |
 | **Persistence / exchange** | Precise local `.fponproj`, original import snapshot, optimistic atomic save, SRT, legacy PONPON JSON and portable versioned timing JSON. |
