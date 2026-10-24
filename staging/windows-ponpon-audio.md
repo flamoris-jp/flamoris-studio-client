@@ -78,4 +78,14 @@ Synthetic CI checks are not physical audio/key/device/DPI acceptance.
   inactive unexpected-exit checkpoints are offered. Test an unwritable recovery
   directory and verify the persistent warning plus ordinary Ctrl+S operation.
 - For an actual repeat of the reported crash, retain the sanitized log and exact
-  edge/follow/zoom conditions. Root-cause closure requires that evidence.
+  edge/follow/zoom conditions. The supplied event log identified the mutable-row selection hash failure; retain fresh logs if a different stack recurs.
+
+
+### Selection identity regression
+
+- Select many lyric rows, let playback highlighting advance, then click timeline
+  boxes or use PON/back. Repeat single/multi-selection, duplicate lyric text,
+  row virtualization and Undo/Redo. No duplicate ItemInfo exception should occur.
+- The event-log stack for the original report is SelectGrid -> SelectedItems.Clear
+  -> Selector.UpdateSelectedItems -> InternalSelectedItemsStorage.Add. Fixing the
+  identity of row objects, rather than suppressing this exception, is required.

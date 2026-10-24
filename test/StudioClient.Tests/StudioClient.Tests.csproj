@@ -7,4 +7,5 @@
     <PackageReference Include="MSTest.TestFramework" Version="4.4.0" />
   </ItemGroup>
   <ItemGroup><None Include="../../product/audio-worker/worker.py" Link="audio-worker/worker.py" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+  <ItemGroup><Compile Include="../../product/StudioClient.App/LyricRow.cs" Link="Presentation/LyricRow.cs" /></ItemGroup>
 </Project>

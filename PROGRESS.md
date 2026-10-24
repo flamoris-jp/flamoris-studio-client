@@ -1,5 +1,23 @@
 # StudioClient delivery evidence
 
+## 2026-10-24: selection crash root cause found from Windows event log (#13)
+
+- The owner supplied .NET Runtime evidence: unhandled ArgumentException for a
+  duplicate ItemInfo key in Selector.InternalSelectedItemsStorage.Add, reached
+  from SelectedItemCollection.ClearItems -> MainWindow.SelectGrid -> timeline click.
+- LyricRow's generated record hash/equality included mutable IsCurrent and
+  PropertyChanged subscribers. Follow/binding changes invalidated keys already
+  stored in WPF selection collections, explaining failures beyond stretching.
+- Replace the row with a reference-identity view class. Highlight notifications
+  remain; text/IDs/timing document and multi-selection behavior are preserved.
+- Before fixing, three CLR regression tests fail (highlight hash stability,
+  subscription hash stability, distinct row instances). After fixing, all 44
+  managed tests pass locally. Windows-targeted WPF Release compilation passes.
+- Windows regression smoke selects 128 rows with repeated text, changes highlight
+  and repeatedly uses the actual SelectGrid clear/reselect path. Before/after CI
+  evidence is recorded on PR #14; physical acceptance remains separate.
+
+
 ## 2026-10-24: stretch-crash report hardening and recovery (#13)
 
 - Owner reports unexpected exit while stretching a lyric-box edge. No exception
@@ -17,8 +35,8 @@
   passes with zero warnings/errors. Windows synthetic UI adds both-edge resize,
   undo, invalid-follow rejection, capture loss and invalid-coordinate checks.
   CI execution evidence is recorded on the implementation PR.
-- Keep #13 open for actual failure-trace/reproduction confirmation; compilation
-  and synthetic drag checks are not proof of the reported physical crash cause.
+- Subsequent Windows event-log investigation is recorded above. The original
+  boundary hardening alone was not the selection-hash root-cause fix.
 
 ## 2026-10-24: PONPON retry, annotations and lyric follow (#11)
 

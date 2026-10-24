@@ -127,5 +127,12 @@ swallowed to keep running. Recovery uses a previously validated checkpoint.
 Stretch/move previews are bounded before numeric conversion, validated including
 predecessor changes, and published only when valid. Rejection or capture loss
 cancels the entire gesture without a later release committing a stale draft.
-The reported physical stretch crash lacks an exception trace and remains an
-unconfirmed root cause; these changes are hardening and evidence collection.
+A later physical report supplied an unhandled ArgumentException in WPF selector
+storage while MainWindow.SelectGrid clears SelectedItems. LyricRow was a record
+whose synthesized value hash included mutable highlight state and the
+PropertyChanged event delegate. Highlight/binding changes invalidated WPF's item
+hash keys. LyricRow is now a reference-identity view class: presentation changes
+and event subscription never change equality/hash identity. No project/schema or
+timing precision changes are needed. Boundary hardening remains complementary.
+The linked CLR tests compile the exact WPF-independent view class; Windows UI
+smoke also exercises the actual DataGrid/SelectGrid selection path.
