@@ -5,6 +5,9 @@ namespace Flamoris.StudioClient.Core;
 
 public static class TimingEdits
 {
+    public static TimingProject ClearTimings(TimingProject project) => Finish(project,
+        project.Lines.Select(l => l with { StartTicks = null, EndTicks = null }).ToImmutableArray());
+
     // All edits are built from one snapshot and validated before session publication.
     public static TimingProject Shift(TimingProject project, IReadOnlySet<Guid> targets, long delta, bool followPrevious)
     {

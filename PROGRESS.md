@@ -1,5 +1,23 @@
 # StudioClient delivery evidence
 
+## 2026-10-24: PONPON retry, annotations and lyric follow (#11)
+
+- Whole annotation-only tag/parenthesis rows are excluded from working lyrics,
+  including existing projects, while the original snapshot and inline groups stay.
+- Virtualized lyric follow keeps one preceding row during recording/audition;
+  current highlight is independent of edit selection and the audio clock.
+- Back button / Z undoes consecutive PON commands with their overwritten ranges
+  and predecessor changes, pauses at the recorded start and reselects that row.
+- Confirmed full clear keeps lyrics, IDs, source media and original imports;
+  all cleared timing is restored by one ordinary Undo.
+- 35 managed tests passed locally, including five workflow cases for filtering,
+  existing/timed imports, PON undo/redo boundaries, stale holds and reset atomicity.
+  Windows-targeted WPF Release build passed with zero warnings/errors.
+- Windows CI smoke adds long-list timer follow/virtualization, annotation rows,
+  real Z handler/input focus, PON progression and full-reset history checks.
+  CI execution evidence is recorded on the implementation PR. Physical sound,
+  key-repeat cadence, pointer/DPI and device timing remain acceptance checks.
+
 ## 2026-10-24: PONPON usability follow-up (#7–#9)
 
 Implemented in PR #10:

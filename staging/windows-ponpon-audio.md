@@ -44,3 +44,21 @@ are later scopes and are not part of the local-runtime acceptance claim.
 - [ ] Boundary errors preserve every row; pending rows/first row are handled clearly.
 
 Synthetic UI smoke checks in CI supplement these physical pointer/audio checks.
+
+
+## PONPON retry/follow acceptance (Issue #11)
+
+- Paste TXT with `[verse1]`, `(whisper)`, `（間奏）`, ordinary lyrics and inline
+  parentheses. Only annotation-only rows disappear. Repeat with timed JSON/SRT
+  and an older `.fponproj`; original snapshot and remaining timing/IDs survive.
+- With a long lyric list, record beyond the first screen. Current is around the
+  second visible row; test first/last rows and a resized table. Audition and
+  みるみる follow playback without replacing the edit selection. Check gaps/seek.
+- Make an accidental PON, use the back button and Z, then resume with S. Check
+  repeated Z, the last lyric, overwriting a timed lyric, predecessor following,
+  focus loss, key repeat and Z typed into text/combobox inputs.
+- Confirm/cancel full clear. Confirm keeps music/stem/text/IDs, removes all timing,
+  stops at zero and selects the first row. One Ctrl+Z restores every cleared time.
+  Compare this with restoring the original imported lyrics/timing.
+
+Synthetic CI checks are not physical audio/key/device/DPI acceptance.

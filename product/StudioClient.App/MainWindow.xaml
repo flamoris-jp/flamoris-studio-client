@@ -17,6 +17,8 @@
       <MenuItem Header="編集">
         <MenuItem Header="元に戻す" Click="Undo_Click" InputGestureText="Ctrl+Z"/>
         <MenuItem Header="やり直す" Click="Redo_Click" InputGestureText="Ctrl+Y"/>
+        <MenuItem Header="1つ前のPONに戻る" Click="UndoPon_Click" InputGestureText="Z"/>
+        <MenuItem Header="タイミングを全クリア…" Click="ClearTimings_Click"/>
         <MenuItem Header="選択行の録り直し" Click="ClearLine_Click"/>
         <MenuItem Header="読み込み時の歌詞に戻す" Click="Restore_Click"/>
       </MenuItem>
@@ -41,6 +43,8 @@
             <Button Content="歌詞を読み込む／貼り付ける…" Click="Import_Click"/>
           </WrapPanel>
           <WrapPanel Grid.Row="1">
+            <Button x:Name="UndoPonButton" Content="↶ 戻る (Z)" Click="UndoPon_Click" ToolTip="直前のPONを取り消し、その開始位置に戻って停止します。"/>
+            <Button x:Name="ClearTimingsButton" Content="全クリア…" Click="ClearTimings_Click" ToolTip="歌詞・音源を残し、全行のタイミングを消して先頭へ戻ります。"/>
             <Button Content="▶ / Ⅱ 再生・停止" Click="Play_Click"/><Button Content="選択行から再生" Click="PlaySelected_Click"/><Button Content="先頭へ" Click="Start_Click"/>
             <TextBlock x:Name="ClockText" Text="00:00.000" FontSize="20" FontFamily="Consolas" VerticalAlignment="Center" Margin="15,0"/>
             <TextBlock Text="S：再生 / Space長押し：PON" Foreground="#52616F" VerticalAlignment="Center"/>
@@ -88,7 +92,10 @@
             <local:TimingSurface x:Name="Timeline" Height="160"/>
           </ScrollViewer>
           <GridSplitter x:Name="RegionSplitter" Grid.Row="5" Height="8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ResizeDirection="Rows" ResizeBehavior="PreviousAndNext" Background="#BBCAD2" Cursor="SizeNS" ToolTip="上下にドラッグして、ぐにぐにと歌詞一覧の高さを調整"/>
-          <DataGrid Grid.Row="6" x:Name="LyricsGrid" Margin="0,9,0,5" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Extended" SelectionUnit="FullRow" ToolTip="Ctrl・Shiftで複数行選択できます。" SelectionChanged="Line_Changed" MouseDoubleClick="Line_DoubleClick" CanUserAddRows="False" EnableRowVirtualization="True">
+          <DataGrid Grid.Row="6" x:Name="LyricsGrid" Margin="0,9,0,5" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Extended" SelectionUnit="FullRow" ToolTip="Ctrl・Shiftで複数行選択できます。" SelectionChanged="Line_Changed" MouseDoubleClick="Line_DoubleClick" CanUserAddRows="False" EnableRowVirtualization="True" RowHeight="30" ScrollViewer.CanContentScroll="True" VirtualizingPanel.ScrollUnit="Item">
+            <DataGrid.RowStyle><Style TargetType="DataGridRow"><Style.Triggers>
+              <DataTrigger Binding="{Binding IsCurrent}" Value="True"><Setter Property="Background" Value="#DCEFE9"/><Setter Property="FontWeight" Value="SemiBold"/></DataTrigger>
+            </Style.Triggers></Style></DataGrid.RowStyle>
             <DataGrid.Columns><DataGridTextColumn Header="#" Binding="{Binding Number}" Width="45"/><DataGridTextColumn Header="歌詞" Binding="{Binding Text}" Width="*"/><DataGridTextColumn Header="開始" Binding="{Binding Start}" Width="115"/><DataGridTextColumn Header="終了" Binding="{Binding End}" Width="115"/></DataGrid.Columns>
           </DataGrid>
           <WrapPanel Grid.Row="7"><TextBlock Text="開始（秒）" VerticalAlignment="Center"/><TextBox x:Name="StartSeconds" Width="90" Margin="6,0"/>

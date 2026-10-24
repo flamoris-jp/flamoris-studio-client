@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Flamoris.StudioClient.Infrastructure;
+using Flamoris.StudioClient.Core;
 using Microsoft.Win32;
 
 namespace Flamoris.StudioClient.App;
@@ -76,7 +77,7 @@ public partial class LyricsWindow : Window
         try
         {
             var result = imported ?? new ImportedLyrics(LyricsInput.Text, LyricsImport.FromText(LyricsInput.Text), false);
-            if (result.Lines.Length == 0) throw new InvalidDataException("歌詞を1行以上入力してください。");
+            if (LyricText.ForTiming(result.Lines).Length == 0) throw new InvalidDataException("タグ・括弧だけの行を除いた歌詞を1行以上入力してください。");
             Result = result; DialogResult = true;
         }
         catch (Exception error) { ImportStatus.Text = error.Message; }

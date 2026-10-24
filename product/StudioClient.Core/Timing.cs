@@ -52,32 +52,40 @@ public static class LyricTime
 }
 
 // The only persistent editing path used by keyboard, pointer and inspector.
+public sealed record PonRecording(Guid LineId, long StartTicks);
+
 public sealed class TimingSession
 {
-    private readonly LinkedList<TimingProject> undo = new();
-    private readonly Stack<TimingProject> redo = new();
+    private sealed record HistoryEntry(TimingProject Project, PonRecording? Recording);
+    private readonly LinkedList<HistoryEntry> undo = new();
+    private readonly Stack<HistoryEntry> redo = new();
     public TimingProject Project { get; private set; } = TimingProject.Empty();
     public long Revision { get; private set; }
     public bool CanUndo => undo.Count != 0;
     public bool CanRedo => redo.Count != 0;
+    public bool CanUndoPon => undo.Last?.Value.Recording is not null;
     public event Action? Changed;
     public void Open(TimingProject project)
     {
-        Project = project.Validate(); undo.Clear(); redo.Clear(); Revision++; Changed?.Invoke();
+        project.Validate();
+        Project = project with { Lines = LyricText.ForTiming(project.Lines) };
+        undo.Clear(); redo.Clear(); Revision++; Changed?.Invoke();
     }
     public bool Execute(Func<TimingProject, TimingProject> edit, long? expectedRevision = null)
+        => Apply(edit, expectedRevision, null);
+    private bool Apply(Func<TimingProject, TimingProject> edit, long? expectedRevision, PonRecording? recording)
     {
         if (expectedRevision.HasValue && expectedRevision != Revision) throw new InvalidOperationException("編集が更新されています。もう一度選択してください。");
         var next = edit(Project).Validate();
         if (next == Project) return false;
-        undo.AddLast(Project); if (undo.Count > 200) undo.RemoveFirst();
+        undo.AddLast(new HistoryEntry(Project, recording)); if (undo.Count > 200) undo.RemoveFirst();
         Project = next; redo.Clear(); Revision++; Changed?.Invoke(); return true;
     }
     public void SetLyrics(string text) => Execute(p =>
     {
         var lines = text.Replace("\r", "").Split('\n').Select(s => s.Trim()).Where(s => s.Length != 0)
             .Select(s => new LyricLine(Guid.NewGuid(), s)).ToImmutableArray();
-        return p with { Lines = lines, OriginalLines = lines };
+        return p with { Lines = LyricText.ForTiming(lines), OriginalLines = lines };
     });
     public void SetRange(Guid id, long start, long end, long? expectedRevision = null) => Execute(p =>
     {
@@ -86,15 +94,22 @@ public sealed class TimingSession
         if (p.Lines[i].StartTicks == start && p.Lines[i].EndTicks == end) return p;
         return p with { Lines = p.Lines.SetItem(i, p.Lines[i] with { StartTicks = start, EndTicks = end }) };
     }, expectedRevision);
+    public bool RecordPon(Guid id, long start, long end, bool followPrevious, long expectedRevision) =>
+        Apply(p => TimingEdits.Range(p, id, start, end, followPrevious), expectedRevision, new(id, start));
+    public PonRecording? UndoPon()
+    {
+        if (undo.Last?.Value.Recording is not { } recording) return null;
+        Undo(); return recording;
+    }
     public void Undo()
     {
         if (undo.Last is not { } last) return;
-        redo.Push(Project); Project = last.Value; undo.RemoveLast(); Revision++; Changed?.Invoke();
+        redo.Push(new(Project, last.Value.Recording)); Project = last.Value.Project; undo.RemoveLast(); Revision++; Changed?.Invoke();
     }
     public void Redo()
     {
         if (!redo.TryPop(out var next)) return;
-        undo.AddLast(Project); Project = next; Revision++; Changed?.Invoke();
+        undo.AddLast(new HistoryEntry(Project, next.Recording)); Project = next.Project; Revision++; Changed?.Invoke();
     }
 }
 

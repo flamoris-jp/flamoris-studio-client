@@ -78,3 +78,17 @@ iteration order. Start-changing gestures may include predecessor-end changes in
 the same expected-revision edit; drag previews are transient and capture loss
 discards them. Positive adjustment input uses integer ticks after decimal conversion;
 unitless values and the 1–20 presets are milliseconds, explicit `s`/`秒` are seconds.
+
+
+## PON retry and annotation handling
+
+Complete annotation-only bracket/parenthesis lines are filtered from working
+lyrics at import and project open, preserving the raw OriginalLines snapshot.
+Inline groups are retained. Opening an old project with annotations marks the
+working document modified; no file is rewritten until ordinary Save.
+PON history entries attach the line ID and actual transport start to their
+existing bounded snapshot. Z can undo only the top PON entry and restores all
+changes in that command, including predecessor following; normal Undo/Redo keeps
+the same metadata. A full timing reset is one validated ordinary command.
+Lyric-list follow uses virtualized item scrolling and one preceding row. It
+changes neither edit selection nor canonical timing nor the playback clock.
