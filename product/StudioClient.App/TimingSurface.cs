@@ -17,6 +17,11 @@ public sealed class TimingSurface : FrameworkElement
     private long revision;
     private (LyricLine Line, double X, string Kind, long Revision)? drag;
     private (long Start, long End)? draft;
+    private ImmutableArray<LyricLine>? draftLines;
+    public Func<Guid, long, long, ImmutableArray<LyricLine>>? PreviewEdit { get; set; }
+    public IReadOnlySet<Guid> SelectedIds { get; set; } = new HashSet<Guid>();
+    private double LaneHeight => Math.Clamp(ActualHeight * .12, 16, 40);
+    private double LaneTop => ActualHeight - 3 * (LaneHeight + 3) - 5;
     public long Playhead { get; set; }
     public Guid? Selected { get; set; }
     public event Action<Guid>? SelectLine;
@@ -25,6 +30,7 @@ public sealed class TimingSurface : FrameworkElement
     public bool Fit { get; set; }
     public void SetData(ImmutableArray<LyricLine> lyrics, AudioFeatures? audio, double seconds, long currentRevision)
     {
+        if (revision != currentRevision) CancelGesture();
         lines = lyrics; waveform = audio?.Waveform ?? []; beats = audio?.Beats ?? [];
         duration = Math.Max(1, seconds); revision = currentRevision;
         InvalidateMeasure(); InvalidateVisual();
@@ -50,25 +56,29 @@ public sealed class TimingSurface : FrameworkElement
         var pen = new Pen(new SolidColorBrush(Color.FromRgb(98, 195, 182)), 1);
         var start = Math.Max(0, (int)(left / Scale * 10) - 2);
         var stop = Math.Min(waveform.Length, (int)(right / Scale * 10) + 3);
+        var waveBottom = LaneTop - 8;
+        var waveCenter = (24 + waveBottom) / 2;
+        var amplitude = Math.Max(5, (waveBottom - 24) * .42);
         for (var i = start; i < stop; i++)
         {
             var p = waveform[i]; var x = p.Time * Scale;
-            dc.DrawLine(pen, new Point(x, 58 - p.Max * 25), new Point(x, 58 - p.Min * 25));
-            dc.DrawLine(new Pen(Brushes.Goldenrod, 1), new Point(x, 92), new Point(x, 92 - p.Rms * 25));
+            dc.DrawLine(pen, new Point(x, waveCenter - p.Max * amplitude), new Point(x, waveCenter - p.Min * amplitude));
+            dc.DrawLine(new Pen(Brushes.Goldenrod, 1), new Point(x, waveBottom), new Point(x, waveBottom - p.Rms * amplitude));
         }
         foreach (var beat in beats)
             if (beat * Scale >= left && beat * Scale <= right)
-                dc.DrawLine(new Pen(Brushes.DarkSlateGray, .5), new Point(beat * Scale, 25), new Point(beat * Scale, 95));
-        for (var i = 0; i < lines.Length; i++)
+                dc.DrawLine(new Pen(Brushes.DarkSlateGray, .5), new Point(beat * Scale, 25), new Point(beat * Scale, waveBottom));
+        var rendered = draftLines ?? lines;
+        for (var i = 0; i < rendered.Length; i++)
         {
-            var l = lines[i]; if (!l.IsTimed) continue;
+            var l = rendered[i]; if (!l.IsTimed) continue;
             var range = drag?.Line.Id == l.Id && draft.HasValue ? draft.Value : (l.StartTicks!.Value, l.EndTicks!.Value);
             var x = (double)LyricTime.Seconds(range.Item1) * Scale;
             var width = Math.Max(2, (double)LyricTime.Seconds(range.Item2 - range.Item1) * Scale);
             if (x + width < left || x > right) continue;
-            var rect = new Rect(x, 102 + i % 3 * 18, width, 16);
-            dc.DrawRoundedRectangle(l.Id == Selected ? Brushes.Teal : Brushes.DarkSlateBlue, new Pen(Brushes.LightSlateGray, .7), rect, 3, 3);
-            dc.PushClip(new RectangleGeometry(rect)); Label(dc, l.Text, Math.Max(x + 5, left + 2), rect.Y + 2, 10, Brushes.White); dc.Pop();
+            var rect = new Rect(x, LaneTop + i % 3 * (LaneHeight + 3), width, LaneHeight);
+            dc.DrawRoundedRectangle((l.Id == Selected || SelectedIds.Contains(l.Id)) ? Brushes.Teal : Brushes.DarkSlateBlue, new Pen(Brushes.LightSlateGray, .7), rect, 3, 3);
+            dc.PushClip(new RectangleGeometry(rect)); Label(dc, l.Text, Math.Max(x + 5, left + 2), rect.Y + 2, Math.Min(14, LaneHeight - 4), Brushes.White); dc.Pop();
         }
         var cursor = (double)LyricTime.Seconds(Playhead) * Scale;
         if (cursor >= left && cursor <= right) dc.DrawLine(new Pen(Brushes.Coral, 1.5), new Point(cursor, 0), new Point(cursor, ActualHeight));
@@ -77,10 +87,11 @@ public sealed class TimingSurface : FrameworkElement
         => dc.DrawText(new FormattedText(value, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, new Typeface("Yu Gothic UI"), size, brush, VisualTreeHelper.GetDpi(this).PixelsPerDip), new Point(x, y));
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
     {
+        Focus();
         var p = e.GetPosition(this);
         for (var i = lines.Length - 1; i >= 0; i--)
         {
-            var l = lines[i]; if (!l.IsTimed || p.Y < 102 + i % 3 * 18 || p.Y > 118 + i % 3 * 18) continue;
+            var l = lines[i]; if (!l.IsTimed || p.Y < LaneTop + i % 3 * (LaneHeight + 3) || p.Y > LaneTop + i % 3 * (LaneHeight + 3) + LaneHeight) continue;
             var left = (double)LyricTime.Seconds(l.StartTicks!.Value) * Scale; var right = (double)LyricTime.Seconds(l.EndTicks!.Value) * Scale;
             if (p.X < left - 3 || p.X > right + 3) continue;
             Selected = l.Id; SelectLine?.Invoke(l.Id);
@@ -97,12 +108,16 @@ public sealed class TimingSurface : FrameworkElement
         if (d.Kind == "move") { delta = Math.Max(delta, -start); start += delta; end += delta; }
         else if (d.Kind == "left") start = Math.Clamp(start + delta, 0, end - 1);
         else end = Math.Clamp(end + delta, start + 1, TimeSpan.FromHours(24).Ticks);
-        draft = (start, end); InvalidateVisual();
+        draft = (start, end);
+        try { draftLines = PreviewEdit?.Invoke(d.Line.Id, start, end); }
+        catch (Exception) { draftLines = null; }
+        InvalidateVisual();
     }
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
     {
-        var d = drag; var final = draft; drag = null; draft = null; ReleaseMouseCapture(); InvalidateVisual();
+        var d = drag; var final = draft; drag = null; draft = null; draftLines = null; ReleaseMouseCapture(); InvalidateVisual();
         if (d.HasValue && final.HasValue) CommitRange?.Invoke(d.Value.Line.Id, final.Value.Start, final.Value.End, d.Value.Revision);
     }
-    protected override void OnLostMouseCapture(MouseEventArgs e) { drag = null; draft = null; InvalidateVisual(); base.OnLostMouseCapture(e); }
+    public void CancelGesture() { drag = null; draft = null; draftLines = null; ReleaseMouseCapture(); InvalidateVisual(); }
+    protected override void OnLostMouseCapture(MouseEventArgs e) { drag = null; draft = null; draftLines = null; InvalidateVisual(); base.OnLostMouseCapture(e); }
 }

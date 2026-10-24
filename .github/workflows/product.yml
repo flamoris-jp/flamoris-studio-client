@@ -61,12 +61,16 @@ jobs:
         run: |
           $app = Start-Process ./artifacts/windows/FLAMORIS-StudioClient-win-x64/StudioClient.exe -ArgumentList '--smoke' -PassThru
           if (-not $app.WaitForExit(30000)) { $app.Kill(); throw 'Startup timed out.' }
-          if ($app.ExitCode -ne 0) { throw "Startup failed: $($app.ExitCode)" }
+          if ($app.ExitCode -ne 0) {
+            Get-Content ./artifacts/windows/FLAMORIS-StudioClient-win-x64/ui-smoke-error.txt -ErrorAction SilentlyContinue
+            throw "Startup failed: $($app.ExitCode)"
+          }
       - uses: actions/upload-artifact@v4
         if: always() && runner.os == 'Windows'
         with:
           name: FLAMORIS-StudioClient-win-x64
           path: |
             artifacts/windows/FLAMORIS-StudioClient-win-x64.zip
-            artifacts/windows/FLAMORIS-StudioClient-win-x64/startup.png
+            artifacts/windows/FLAMORIS-StudioClient-win-x64/*.png
+            artifacts/windows/FLAMORIS-StudioClient-win-x64/ui-smoke*
           retention-days: 7
