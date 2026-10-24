@@ -24,6 +24,23 @@ public partial class MainWindow
         KeyEventArgs KeyEvent(Key key, RoutedEvent routed) => new(Keyboard.PrimaryDevice,
             PresentationSource.FromVisual(this)!, Environment.TickCount, key) { RoutedEvent = routed };
         CaptureSmoke(this, "startup.png");
+        session.SetLyrics(string.Join('\n', Enumerable.Range(1, 128).Select(_ => "同じ歌詞")));
+        var selectionRows = (LyricRow[])LyricsGrid.ItemsSource;
+        selectedIds.Clear(); foreach (var row in selectionRows) selectedIds.Add(row.Id);
+        selected = selectionRows[0].Id; SelectGrid();
+        for (var pass = 0; pass < 8; pass++)
+        {
+            // Change selected-row highlight keys before clearing WPF selection.
+            // This is the reported SelectGrid -> SelectedItemCollection.ClearItems path.
+            FollowLyric(selectionRows[pass + 32].Id);
+            selected = selectionRows[pass + 1].Id;
+            selectedIds.Clear(); selectedIds.Add(selected.Value); SelectGrid();
+            Check(LyricsGrid.SelectedItems.Count == 1 && ((LyricRow)LyricsGrid.SelectedItem).Id == selected,
+                "highlight then SelectGrid retains one selected item, pass " + pass);
+            selectedIds.Clear(); foreach (var row in selectionRows) selectedIds.Add(row.Id); SelectGrid();
+        }
+        Check(LyricsGrid.SelectedItems.Count == 128, "duplicate lyric text keeps independent selectable rows");
+
         session.SetLyrics("現在の歌詞 — 宇宙へ進もう\nNEXTも同じ大きさで読む\nその次の歌詞\n最後の歌詞");
         var ids = session.Project.Lines.Select(l => l.Id).ToArray();
         session.SetRange(ids[0], 10_000_000, 20_000_000);
