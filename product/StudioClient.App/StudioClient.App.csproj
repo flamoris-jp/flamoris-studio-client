@@ -3,7 +3,11 @@
     <TargetFramework>net10.0-windows</TargetFramework><UseWPF>true</UseWPF>
     <EnableWindowsTargeting>true</EnableWindowsTargeting><OutputType>WinExe</OutputType>
     <AssemblyName>StudioClient</AssemblyName>
+    <ApplicationIcon>Assets/StudioClient.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../StudioClient.Infrastructure/StudioClient.Infrastructure.csproj" /></ItemGroup>
   <ItemGroup><None Include="../audio-worker/*" Link="audio-worker/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets/StudioClient.ico" />
+  </ItemGroup>
 </Project>
