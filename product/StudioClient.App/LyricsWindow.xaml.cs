@@ -34,7 +34,7 @@ public partial class LyricsWindow : Window
     internal async Task LoadFile(string path)
     {
         if (loading) return;
-        loading = true; ApplyButton.IsEnabled = false; LyricsInput.IsReadOnly = true;
+        loading = true; ApplyButton.IsEnabled = DistributionButton.IsEnabled = false; LyricsInput.IsReadOnly = true;
         try
         {
             var next = await LyricsImport.LoadAsync(path);
@@ -46,7 +46,7 @@ public partial class LyricsWindow : Window
             ImportStatus.Text = next.PreserveTiming ? "タイミングを保持します。本文を編集すると、新しい歌詞として時間を記録し直します。" : "読み込みました。「この歌詞で始める」で確定してください。";
         }
         catch (Exception e) { ImportStatus.Text = e.Message; }
-        finally { loading = false; ApplyButton.IsEnabled = true; LyricsInput.IsReadOnly = false; }
+        finally { loading = false; ApplyButton.IsEnabled = DistributionButton.IsEnabled = true; LyricsInput.IsReadOnly = false; }
     }
     private static string DroppedPath(DragEventArgs e)
     {
@@ -70,6 +70,16 @@ public partial class LyricsWindow : Window
     {
         e.Handled = true; DropBorder.BorderBrush = Brushes.DarkSeaGreen;
         try { await LoadFile(DroppedPath(e)); }
+        catch (Exception error) { ImportStatus.Text = error.Message; }
+    }
+    private void Distribution_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (loading) return;
+            if (string.IsNullOrWhiteSpace(LyricsInput.Text)) throw new InvalidDataException("歌詞を入力してください。");
+            new DistributionLyricsWindow(LyricsInput.Text) { Owner = this }.ShowDialog();
+        }
         catch (Exception error) { ImportStatus.Text = error.Message; }
     }
     private void Apply_Click(object sender, RoutedEventArgs e)

@@ -19,7 +19,7 @@ are implemented in this slice.
 | **PONPON** | Open music, paste or drop TXT/JSON/SRT in a dedicated lyrics window; S plays and Space holds/releases to record line times. Skips annotation-only lines, follows lyrics, Z retries the last PON, and full timing reset keeps lyrics/audio. Native Windows controls; no manual song directory or song.json. |
 | **ぐにぐに / いじいじ** | Resizable waveform/table, drag move/trim, multi-row/all-row time adjustment, predecessor-end follow, zoom/scroll, selected-line audition, inspector, Undo/Redo. Optional aligned Vocal Stem. |
 | **みるみる** | Preview the lyric at the playback position. |
-| **Persistence / exchange** | Precise local `.fponproj`, original import snapshot, optimistic atomic save, SRT, legacy PONPON JSON and portable versioned timing JSON. |
+| **Persistence / exchange** | Precise local `.fponproj`, original import snapshot, optimistic atomic save, SRT, legacy PONPON JSON and portable versioned timing JSON. Distribution lyrics preview, conservative cleanup, manual review, copy and UTF-8 TXT export. |
 | **AudioAnalyzer** | Independent audio-only worker; waveform, relative RMS dynamics, estimated BPM/beats, key and major/minor-triad chords. Cancel, source fingerprint/stale checks and JSON export. |
 
 The UI is C# / WPF (.NET 10); a bounded Python/NumPy + FFmpeg worker processes

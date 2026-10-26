@@ -12,6 +12,7 @@
     </Border>
     <TextBlock Grid.Row="3" x:Name="ImportStatus" Text="確定するまで、編集中の歌詞・タイミングは変更しません。" Margin="0,10" TextWrapping="Wrap" Foreground="#52616F"/>
     <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+      <Button x:Name="DistributionButton" Content="配信用歌詞…" Click="Distribution_Click"/>
       <Button Content="キャンセル" IsCancel="True"/>
       <Button x:Name="ApplyButton" Content="この歌詞で始める（1行ずつ）" Click="Apply_Click"/>
     </StackPanel>

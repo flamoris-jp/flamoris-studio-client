@@ -105,6 +105,30 @@ public partial class MainWindow
             finally { File.Delete(path); }
         }
         finally { dialog.Close(); }
+        var distributionSnapshot = session.Project;
+        var distribution = new DistributionLyricsWindow("[Verse1]\nhello.\n(ooh)\n[Chorus]\nNASA!") { Owner = this };
+        distribution.Show(); distribution.UpdateLayout();
+        try
+        {
+            var preview = (TextBox)distribution.FindName("PreviewText");
+            var copy = (Button)distribution.FindName("CopyButton");
+            var saveText = (Button)distribution.FindName("SaveTextButton");
+            Check(preview.Text == "Hello\n(Ooh)\n\nNASA!" && copy.IsEnabled && saveText.IsEnabled,
+                "distribution preview formats tags and punctuation without timing or audio");
+            preview.Text += "\nmanual edit.";
+            Check(!copy.IsEnabled && !saveText.IsEnabled, "manual distribution edits require another check");
+            distribution.GetType().GetMethod("Check_Click", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .Invoke(distribution, [distribution, new RoutedEventArgs()]);
+            Check(copy.IsEnabled && saveText.IsEnabled && preview.Text.EndsWith("manual edit."),
+                "distribution check reports edited text without rewriting it");
+            Check(session.Project == distributionSnapshot, "distribution draft preserves original document and timing");
+            CaptureSmoke(distribution, "distribution-lyrics.png");
+            distribution.Width = distribution.MinWidth; distribution.Height = distribution.MinHeight; distribution.UpdateLayout();
+            Check(preview.ActualHeight > 80 && saveText.TranslatePoint(new Point(0, saveText.ActualHeight), distribution).Y < distribution.ActualHeight,
+                "distribution minimum window keeps editor and export actions visible");
+            CaptureSmoke(distribution, "distribution-lyrics-minimum.png");
+        }
+        finally { distribution.Close(); }
         // PON-specific undo must not undo typing/imports or other document edits.
         session.SetLyrics("[verse1]\n(whisper)\n" + string.Join('\n', Enumerable.Range(1, 80).Select(i => $"歌詞 {i}")));
         Check(session.Project.Lines.Length == 80 && LyricsGrid.Items.Count == 80 && session.Project.OriginalLines.Length == 82,

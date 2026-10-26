@@ -1,5 +1,18 @@
 # StudioClient delivery evidence
 
+## 2026-10-27: distribution lyrics review/export (#17)
+
+- Add an independent editable lyrics preview from the current project or the
+  lyrics import dialog. Conservative section-tag, line-ending punctuation,
+  initial-capital and blank-line cleanup; spelling/acronyms/parenthetical vocals
+  require review. Copy and UTF-8 TXT use the checked text, with atomic local save.
+- Preserve canonical edits, timing and history. Restore skipped annotation-only
+  rows by original IDs; old projects cannot reconstruct original blank lines.
+- Add managed regression coverage and Windows synthetic UI checks/screenshots.
+  Build/CI results are recorded on the implementation PR. Physical clipboard,
+  save-dialog and representative lyric review remain separate acceptance checks.
+
+
 ## 2026-10-24: selection crash root cause found from Windows event log (#13)
 
 - The owner supplied .NET Runtime evidence: unhandled ArgumentException for a

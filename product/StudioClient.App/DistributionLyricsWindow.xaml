@@ -1,0 +1,12 @@
+<Window x:Class="Flamoris.StudioClient.App.DistributionLyricsWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="配信用歌詞 — 確認して書き出す" Width="900" Height="720" MinWidth="620" MinHeight="520" WindowStartupLocation="CenterOwner" Background="#F3F5F7" FontFamily="Yu Gothic UI" FontSize="14">
+  <Grid x:Name="ReviewContent" Margin="18">
+    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="150"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+    <TextBlock Text="配信用歌詞" FontSize="25" FontWeight="SemiBold"/>
+    <TextBlock Grid.Row="1" Margin="0,8,0,12" Text="歌詞を編集して確認できます。音源との一致・スペル・節の空行は最後に確認してね。元の歌詞とタイミングは変わりません。" TextWrapping="Wrap" Foreground="#52616F"/>
+    <TextBox Grid.Row="2" x:Name="PreviewText" MaxLength="4000000" AcceptsReturn="True" AcceptsTab="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap" TextChanged="Preview_Changed" AutomationProperties.Name="配信用歌詞の編集"/>
+    <DockPanel Grid.Row="3" Margin="0,8"><StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><Button Content="整形し直す" Click="Format_Click"/><Button Content="チェック" Click="Check_Click"/></StackPanel><TextBlock x:Name="ReviewStatus" TextWrapping="Wrap" VerticalAlignment="Center"/></DockPanel>
+    <TabControl Grid.Row="4"><TabItem Header="要確認"><TextBox x:Name="WarningsText" IsReadOnly="True" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/></TabItem><TabItem Header="整形内容"><TextBox x:Name="ChangesText" IsReadOnly="True" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/></TabItem></TabControl>
+    <DockPanel Grid.Row="5" Margin="0,12,0,0"><Button DockPanel.Dock="Right" Content="閉じる" IsCancel="True"/><StackPanel Orientation="Horizontal"><Button x:Name="CopyButton" Content="コピー" Click="Copy_Click"/><Button x:Name="SaveTextButton" Content="TXTで保存…" Click="Save_Click"/></StackPanel></DockPanel>
+  </Grid>
+</Window>
