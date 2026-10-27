@@ -519,6 +519,13 @@ public partial class MainWindow : Window
         if (Timeline is not null && TimelineScroll.ViewportHeight > 0 && double.IsFinite(TimelineScroll.ViewportHeight) && Math.Abs(Timeline.Height - TimelineScroll.ViewportHeight) > .5)
             Timeline.Height = Math.Max(125, TimelineScroll.ViewportHeight);
     }
+    private void ExportDistribution_Click(object sender, RoutedEventArgs e) => Sync(() =>
+    {
+        AbortHold(); Timeline.CancelGesture(); player.Pause(); playing = false;
+        var text = DistributionLyrics.FromProject(session.Project);
+        if (string.IsNullOrWhiteSpace(text)) throw new InvalidOperationException("歌詞を読み込んでから開いてください。");
+        new DistributionLyricsWindow(text) { Owner = this }.ShowDialog();
+    });
     private async Task Export(byte[] content, string filter, string name)
     {
         var dialog = new SaveFileDialog { Filter = filter, FileName = name, OverwritePrompt = true };

@@ -55,7 +55,8 @@ stored beside a previous executable.
    also aborts it without committing a stuck/partial range.
 7. **みるみる** previews the lyric at the current playback position. Starting PON
    turns this view off so the row being recorded remains explicit.
-8. Save `.fponproj` and export SRT, portable timing JSON or legacy PONPON JSON from
+8. Distribution lyrics: use **ファイル → 配信用歌詞を整える／書き出す…** (also available in the lyrics import dialog). Review the editable cleaned text and warnings, then copy or save UTF-8 TXT. No audio/timing is required. See [配信用歌詞の操作と制限](distribution-lyrics.md).
+9. Save `.fponproj` and export SRT, portable timing JSON or legacy PONPON JSON from
    the File menu. No analysis is required. The original imported file is preserved.
 
 ### Tag lines, automatic scrolling and restarting

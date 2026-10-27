@@ -9,6 +9,7 @@
         <MenuItem Header="名前を付けて保存…" Click="SaveAs_Click"/>
         <Separator/>
         <MenuItem Header="歌詞を読み込む／貼り付ける…" Click="Import_Click"/>
+        <MenuItem Header="配信用歌詞を整える／書き出す…" Click="ExportDistribution_Click"/>
         <MenuItem Header="SRTを書き出す…" Click="ExportSrt_Click"/>
         <MenuItem Header="歌詞タイミングJSONを書き出す…" Click="ExportTiming_Click"/>
         <MenuItem Header="PONPON JSONを書き出す…" Click="ExportPonpon_Click"/>
