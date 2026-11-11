@@ -1,0 +1,4 @@
+# Optional research CLI; existing prepare/analyze worker does not require these.
+librosa==0.11.0
+soundfile>=0.12.1,<0.14
+numpy>=1.26,<3
